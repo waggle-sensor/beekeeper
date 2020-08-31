@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
-
+# TODO documentation
 class sshkeygen:
     base_dir = None
     results = {}
@@ -30,6 +30,7 @@ class sshkeygen:
     def __init__(self):
         self.base_dir = tempfile.TemporaryDirectory()
 
+    # TODO documentation
     def create_key_pair(self, file, type="rsa", bits="4096"):
         priv_file = os.path.join(self.base_dir.name, file)
 
@@ -46,6 +47,7 @@ class sshkeygen:
 
         self._key_file = priv_file
 
+    # TODO documentation
     def create_certificate(self, name, ca_path):
         priv_file = os.path.join(self.base_dir.name, name)
 

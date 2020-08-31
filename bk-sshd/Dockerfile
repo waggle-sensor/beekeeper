@@ -7,7 +7,14 @@
 
 FROM ubuntu:18.04
 
-RUN apt-get update && apt-get install -y openssh-server curl netcat net-tools socat
+RUN apt-get update && apt-get install -y \
+    curl \
+    net-tools \
+    netcat \
+    openssh-server \
+    perl \
+    python3-flask \
+    socat
 RUN mkdir -p /var/run/sshd
 
 RUN echo 'root:uZAh0t3Bj4R2Uey*PB5DKMx9GpW%68G9' | chpasswd
@@ -37,4 +44,4 @@ RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so
 COPY ROOTFS/ /
 
 EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D", "-e"]
+CMD ["/opt/sage/beekeeper/run.sh"]

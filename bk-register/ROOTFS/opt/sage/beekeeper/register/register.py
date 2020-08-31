@@ -6,15 +6,15 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
+import flask
 import json
 import logging
 import os
+import requests
 import sys
 from sshkeygen import sshkeygen
 
-from flask import Flask, request
-
-app = Flask(__name__)
+app = flask.Flask(__name__)
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -27,32 +27,45 @@ logger.addHandler(handler)
 
 BASE_KEY_DIR = "/usr/lib/sage"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
+USER_SERVER = "http://bk-sshd"
 
-
+# TODO documentation
 @app.route("/register")
 def register():
-    id = request.args.get("id")
+    id = flask.request.args.get("id")
 
-    # TODO: error checking for CA is present, discover the file
+    try:
+        # TODO: error checking for CA is present, discover the file
 
-    # generate new keys sizgned by the CA for custom tunnel to beekeeper
-    # create a user somewhere to allow the "node specific user" to connect
-    client_keys = sshkeygen()
-    client_keys.create_key_pair(id)
-    client_keys.create_certificate(id, CA_FILE)
+        # generate new keys sizgned by the CA for custom tunnel to beekeeper
+        # create a user somewhere to allow the "node specific user" to connect
+        client_keys = sshkeygen()
+        client_keys.create_key_pair(id)
+        client_keys.create_certificate(id, CA_FILE)
 
-    # TODO: error checking on returns in `results`
+        # TODO: error checking on returns in `client_keys`
 
-    results = {
-        "id": client_keys.results["user"],
-        "private_key": client_keys.results["private_key"],
-        "public_key": client_keys.results["public_key"],
-        "certificate": client_keys.results["certificate"],
-    }
+        # request for EP user be added
+        url = os.path.join(USER_SERVER, "adduser")
+        data = {"user": client_keys.results["user"]}
+
+        post_results = requests.post(url, data=data)
+        if not post_results.ok:
+            raise Exception(
+                "Unable to add user [{}]".format(client_keys.results["user"])
+            )
+
+        results = {
+            "id": client_keys.results["user"],
+            "private_key": client_keys.results["private_key"],
+            "public_key": client_keys.results["public_key"],
+            "certificate": client_keys.results["certificate"],
+        }
+    except Exception as e:
+        return "Error: unable to register id [{}]".format(id), 500
 
     return json.dumps(results)
 
 
 if __name__ == "__main__":
-    logger.debug("hello world")
     app.run(host="0.0.0.0", port=80)

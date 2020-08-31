@@ -8,7 +8,10 @@
 FROM ubuntu:18.04
 
 EXPOSE 80
-RUN apt-get update && apt-get install -y openssh-client python3-mysqldb python3-flask python3-requests
+RUN apt-get update && apt-get install -y \
+  openssh-client \
+  python3-flask \
+  python3-requests
 
 COPY ROOTFS/ /
 
