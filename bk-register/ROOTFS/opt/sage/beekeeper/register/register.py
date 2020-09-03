@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-# ANL:waggle-license
-#  This file is part of the Waggle Platform.  Please see the file
-#  LICENSE.waggle.txt for the legal details of the copyright and software
-#  license.  For more details on the Waggle project, visit:
-#           http://www.wa8.gl
-# ANL:waggle-license
+"""
+Provides API interface to register an end-point to the beekeeper.
+
+ANL:waggle-license
+ This file is part of the Waggle Platform.  Please see the file
+ LICENSE.waggle.txt for the legal details of the copyright and software
+ license.  For more details on the Waggle project, visit:
+          http://www.wa8.gl
+ANL:waggle-license
+"""
 
 import flask
 import json
@@ -29,15 +33,21 @@ BASE_KEY_DIR = "/usr/lib/sage"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
 USER_SERVER = "http://bk-sshd"
 
-# TODO documentation
+
 @app.route("/register")
 def register():
-    id = flask.request.args.get("id")
+    """API to create keys, certificate and user for end-point.
+
+    Arguments:
+        id (str): unique ID for this end-point
+
+    Returns:
+        dict: end-point id, private key, public key and certificate
+    """
+    id = flask.request.args.get("id", type=str)
 
     logger.debug("Register user [{}]".format(id))
     try:
-        # TODO: error checking for CA is present, discover the file
-
         # generate new keys sizgned by the CA for custom tunnel to beekeeper
         # create a user somewhere to allow the "node specific user" to connect
         logger.debug("- generate keys and certificates")
@@ -45,7 +55,6 @@ def register():
         client_keys.create_key_pair(id)
         client_keys.create_certificate(id, CA_FILE)
 
-        # TODO: error checking on returns in `client_keys`
         data = {
             "id": client_keys.results["user"],
             "private_key": client_keys.results["private_key"],
@@ -65,7 +74,8 @@ def register():
             "- successfully created user [{}]".format(client_keys.results["user"])
         )
     except Exception as e:
-        return "Error: unable to register id [{}]".format(id), 500
+        logger.error(e)
+        return "Error: unable to register id [{}]\n".format(id), 500
 
     return json.dumps(data)
 

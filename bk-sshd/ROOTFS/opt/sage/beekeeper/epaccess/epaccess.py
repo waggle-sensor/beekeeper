@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-# ANL:waggle-license
-#  This file is part of the Waggle Platform.  Please see the file
-#  LICENSE.waggle.txt for the legal details of the copyright and software
-#  license.  For more details on the Waggle project, visit:
-#           http://www.wa8.gl
-# ANL:waggle-license
+"""
+Defines API interface to add / delete users from the Linux system.
+
+ANL:waggle-license
+ This file is part of the Waggle Platform.  Please see the file
+ LICENSE.waggle.txt for the legal details of the copyright and software
+ license.  For more details on the Waggle project, visit:
+          http://www.wa8.gl
+ANL:waggle-license
+"""
 
 import flask
 import grp
@@ -29,37 +33,57 @@ logger.addHandler(handler)
 USER_HOME_DIR = "/home_dirs"
 
 
-# TODO documentation
 def _user_exists(user):
+    """Test if the user `user` exists in the system
+
+    Arguments:
+        user (str): the user to test for existance
+
+    Returns:
+        bool: True if the user exists; False otherwise
+    """
     cmd = ["id", "-u", user]
     result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
     return result.returncode == 0
 
 
-# TODO documentation
 def _add_user(user):
+    """Add the user `user` to the system
+
+    Arguments:
+        user (str): the user to add
+
+    Returns:
+        None; Exception on failure
+    """
     logger.debug("Adding user [{}] to system".format(user))
-    success = False
 
     if _user_exists(user):
         logger.debug("- user [{}] already exists, skipping".format(user))
-        success = True
     else:
         cmd = ["useradd", "-mr", "-b", USER_HOME_DIR, "-p", user, user]
         result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
         if result.returncode == 0:
             logger.debug("- user [{}] add: success".format(user))
-            success = True
         else:
-            # TODO: add more information here
             logger.error("- user [{}] add: fail".format(user))
+            # raise exception
+            result.check_returncode()
 
-    return success
 
-
-# TODO documentation
 def _save_keys(user, private_key=None, public_key=None, certificate=None):
+    """Save keys and/or certificate to the `user` home directory
+
+    Arguments:
+        user (str): the user to add the keys / certificate
+        private_key (str): private key to save to "id_rsa-tunnel"
+        public_key (str): public key to save to "id_rsa-tunnel.pub"
+        certificate (str): certificate to save to "id_rsa-tunnel-cert.pub"
+
+    Returns:
+        None
+    """
     logger.debug("Saving user [{}] credentials".format(user))
 
     uid = pwd.getpwnam(user).pw_uid
@@ -90,59 +114,83 @@ def _save_keys(user, private_key=None, public_key=None, certificate=None):
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
 
 
-# TODO documentation
 def _del_user(user):
+    """Delete the user `user` from the system
+
+    Arguments:
+        user (str): the user to delete from the system
+
+    Returns:
+        None; Exception on failure
+    """
     logger.debug("Deleting user [{}] from system".format(user))
-    success = False
 
     if not _user_exists(user):
         logger.debug("- user [{}] does not exists, skipping".format(user))
-        success = True
     else:
         cmd = ["deluser", "--remove-home", user]
         result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
         if result.returncode == 0:
             logger.debug("- user [{}] delete: success".format(user))
-            success = True
         else:
-            # TODO: add more information here
             logger.error("- user [{}] delete: fail".format(user))
+            # raise exception
+            result.check_returncode()
 
-    return success
 
-
-# TODO documentation
 @app.route("/deluser", methods=["POST"])
 def deluser():
+    """API to delete the user `user` from the system
+
+    Arguments:
+        user (str): the user to delete from the system
+
+    Returns:
+        str: human-readable string; includes HTML error code 500 on failure
+    """
     user = flask.request.values.get("id")
     logger.info("Delete user [{}]".format(user))
 
-    if not _del_user(user):
+    try:
+        _del_user(user)
+    except Exception as e:
+        logger.error(e)
         return "Error: unable to delete user [{}]".format(user), 500
-    else:
-        return "User [{}] deleted".format(user)
+
+    return "User [{}] deleted".format(user)
 
 
-# TODO documentation
 @app.route("/adduser", methods=["POST"])
 def adduser():
+    """API to add the user `user` to the system
+
+    Arguments:
+        user (str): the user to add to the system
+
+    Returns:
+        str: human-readable string; includes HTML error code 500 on failure
+    """
     user = flask.request.values.get("id")
     logger.info("Add user [{}]".format(user))
 
-    if not _add_user(user):
+    try:
+        _add_user(user)
+    except Exception as e:
+        logger.error(e)
         return "Error: unable to add user [{}]".format(user), 500
-    else:
-        try:
-            # save the user's keys
-            priv_key = flask.request.values.get("private_key")
-            pub_key = flask.request.values.get("public_key")
-            cert = flask.request.values.get("certificate")
-            _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
-        except Exception as e:
-            logger.warning("Warning: Unable to save user [{}] keys".format(user))
-            logger.debug(e)
-        return "User [{}] added".format(user)
+
+    try:
+        # save the user's keys
+        priv_key = flask.request.values.get("private_key")
+        pub_key = flask.request.values.get("public_key")
+        cert = flask.request.values.get("certificate")
+        _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
+    except Exception as e:
+        logger.warning("Warning: Unable to save user [{}] keys".format(user))
+        logger.debug(e)
+
+    return "User [{}] added".format(user)
 
 
 if __name__ == "__main__":

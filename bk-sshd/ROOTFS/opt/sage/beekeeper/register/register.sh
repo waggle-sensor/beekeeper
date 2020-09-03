@@ -15,9 +15,6 @@ run_command() {
     register)
       curl -s -X GET "$bk_register_ip/register?id=${input[1]}"
       ;;
-    epoch)
-      date +%s
-      ;;
     *)
       echo "invalid command"
       exit 1
