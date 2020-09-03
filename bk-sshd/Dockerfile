@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y \
     openssh-server \
     perl \
     python3-flask \
-    socat
-RUN mkdir -p /var/run/sshd
+    socat \
+    supervisor
+RUN mkdir -p /var/run/sshd /var/log/supervisor
 
 RUN echo 'root:uZAh0t3Bj4R2Uey*PB5DKMx9GpW%68G9' | chpasswd
 
@@ -41,4 +42,4 @@ RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
 COPY ROOTFS/ /
 
 EXPOSE 22
-CMD ["/opt/sage/beekeeper/run.sh"]
+CMD ["/usr/bin/supervisord"]

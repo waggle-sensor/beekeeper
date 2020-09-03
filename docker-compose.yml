@@ -1,9 +1,9 @@
-version: '3'
+version: '3.7'
 services:
-
   bk-register:
     build: bk-register
     restart: always
+    init: true
     networks:
       - beehive
     ports:
@@ -14,6 +14,8 @@ services:
   bk-sshd:
     build: bk-sshd
     restart: always
+    depends_on:
+      - bk-register
     networks:
       - beehive
     ports:
