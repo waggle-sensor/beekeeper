@@ -34,37 +34,40 @@ USER_SERVER = "http://bk-sshd"
 def register():
     id = flask.request.args.get("id")
 
+    logger.debug("Register user [{}]".format(id))
     try:
         # TODO: error checking for CA is present, discover the file
 
         # generate new keys sizgned by the CA for custom tunnel to beekeeper
         # create a user somewhere to allow the "node specific user" to connect
+        logger.debug("- generate keys and certificates")
         client_keys = sshkeygen()
         client_keys.create_key_pair(id)
         client_keys.create_certificate(id, CA_FILE)
 
         # TODO: error checking on returns in `client_keys`
+        data = {
+            "id": client_keys.results["user"],
+            "private_key": client_keys.results["private_key"],
+            "public_key": client_keys.results["public_key"],
+            "certificate": client_keys.results["certificate"],
+        }
 
         # request for EP user be added
         url = os.path.join(USER_SERVER, "adduser")
-        data = {"user": client_keys.results["user"]}
-
         post_results = requests.post(url, data=data)
         if not post_results.ok:
             raise Exception(
                 "Unable to add user [{}]".format(client_keys.results["user"])
             )
 
-        results = {
-            "id": client_keys.results["user"],
-            "private_key": client_keys.results["private_key"],
-            "public_key": client_keys.results["public_key"],
-            "certificate": client_keys.results["certificate"],
-        }
+        logger.debug(
+            "- successfully created user [{}]".format(client_keys.results["user"])
+        )
     except Exception as e:
         return "Error: unable to register id [{}]".format(id), 500
 
-    return json.dumps(results)
+    return json.dumps(data)
 
 
 if __name__ == "__main__":

@@ -7,9 +7,12 @@
 # ANL:waggle-license
 
 import flask
+import grp
 import logging
 import os
+import pwd
 import subprocess as sp
+import stat
 import sys
 
 app = flask.Flask(__name__)
@@ -56,6 +59,38 @@ def _add_user(user):
 
 
 # TODO documentation
+def _save_keys(user, private_key=None, public_key=None, certificate=None):
+    logger.debug("Saving user [{}] credentials".format(user))
+
+    uid = pwd.getpwnam(user).pw_uid
+    gid = grp.getgrnam(user).gr_gid
+
+    if private_key:
+        logger.debug("- saving private key")
+        path = os.path.join(USER_HOME_DIR, user, "id_rsa-tunnel")
+        with open(path, "w+") as f:
+            f.write(private_key)
+        os.chown(path, uid, gid)
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+
+    if public_key:
+        logger.debug("- saving public key")
+        path = os.path.join(USER_HOME_DIR, user, "id_rsa-tunnel.pub")
+        with open(path, "w+") as f:
+            f.write(public_key)
+        os.chown(path, uid, gid)
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+    if certificate:
+        logger.debug("- saving certificate")
+        path = os.path.join(USER_HOME_DIR, user, "id_rsa-tunnel-cert.pub")
+        with open(path, "w+") as f:
+            f.write(certificate)
+        os.chown(path, uid, gid)
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+
+# TODO documentation
 def _del_user(user):
     logger.debug("Deleting user [{}] from system".format(user))
     success = False
@@ -80,7 +115,7 @@ def _del_user(user):
 # TODO documentation
 @app.route("/deluser", methods=["POST"])
 def deluser():
-    user = flask.request.values.get("user")
+    user = flask.request.values.get("id")
     logger.info("Delete user [{}]".format(user))
 
     if not _del_user(user):
@@ -92,12 +127,21 @@ def deluser():
 # TODO documentation
 @app.route("/adduser", methods=["POST"])
 def adduser():
-    user = flask.request.values.get("user")
+    user = flask.request.values.get("id")
     logger.info("Add user [{}]".format(user))
 
     if not _add_user(user):
         return "Error: unable to add user [{}]".format(user), 500
     else:
+        try:
+            # save the user's keys
+            priv_key = flask.request.values.get("private_key")
+            pub_key = flask.request.values.get("public_key")
+            cert = flask.request.values.get("certificate")
+            _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
+        except Exception as e:
+            logger.warning("Warning: Unable to save user [{}] keys".format(user))
+            logger.debug(e)
         return "User [{}] added".format(user)
 
 
