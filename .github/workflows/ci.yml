@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build_docker_image:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build the beekeeper docker images
+        run: docker-compose build
+      - name: Test docker images run
+        run: |
+          docker volume create --name=beekeeper-config_bk-secrets
+          docker-compose run bk-sshd ls
+          docker-compose run bk-sshd ls
+      - name: Run unit-tests (bk-sshd)
+        run: ./bk-sshd/unit-tests/unit-tests.sh
+      - name: Run unit-tests (bk-register)
+        run: ./bk-register/unit-tests/unit-tests.sh

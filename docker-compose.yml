@@ -1,0 +1,35 @@
+version: '3.7'
+services:
+  bk-register:
+    build: bk-register
+    restart: always
+    init: true
+    networks:
+      - beehive
+    ports:
+      - "127.0.0.1:24181:80"
+    volumes:
+      - "bk-secrets:/usr/lib/sage/:ro"
+
+  bk-sshd:
+    build: bk-sshd
+    restart: always
+    depends_on:
+      - bk-register
+    networks:
+      - beehive
+    ports:
+      - "20022:22"
+      - "127.0.0.1:24182:80"
+    volumes:
+      - "bk-homedirs:/home_dirs"
+      - "bk-secrets:/usr/lib/sage/:ro"
+
+volumes:
+  bk-homedirs:
+  bk-secrets:
+    external:
+      name: beekeeper-config_bk-secrets
+
+networks:
+  beehive:
