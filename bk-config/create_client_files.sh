@@ -10,7 +10,7 @@ if [ ! $# -eq 3 ]
   then
     echo "Usage: create_client_files.sh  HOST PORT MINUTES"
     echo ""
-    echo "    example: create_client_files.sh ost.docker.internal 20022 15"
+    echo "    example: create_client_files.sh host.docker.internal 20022 15"
     echo ""
     exit 1
 fi
