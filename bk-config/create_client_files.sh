@@ -16,7 +16,8 @@ if [ ! $# -eq 3 ]
 fi
 
 
-FILES="known_hosts id_rsa_sage_registration-cert.pub id_rsa_sage_registration id_rsa_sage_registration.pub sage_beekeeper_ca.pub"
+FILES="known_hosts id_rsa_sage_registration-cert.pub id_rsa_sage_registration id_rsa_sage_registration.pub"
+# sage_beekeeper_ca.pub should not be needed, key is alreadu in known_hosts
 
 for file in ${FILES} ; do 
   if [ -e ${file} ] ; then
@@ -32,15 +33,16 @@ set -x
 
 ${CONTAINER_CMD} create_known_hosts_file.sh host.docker.internal 20022 > ./known_hosts
 
-${CONTAINER_CMD} create_registration_cert.sh $3 | tail -n 1 > ./id_rsa_sage_registration-cert.pub
+${CONTAINER_CMD} create_registration_cert.sh $3 | tail -n 1 > ./register-cert.pub
 
-docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration .
-docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration.pub .
-docker cp beekeeper_bk-sshd_1:/usr/lib/sage/certca/sage_beekeeper_ca.pub .
+docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration ./register.pem
+docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration.pub ./register.pub
+#docker cp beekeeper_bk-sshd_1:/usr/lib/sage/certca/sage_beekeeper_ca.pub .
 
+OUTPUT_FILES="known_hosts register.pem register.pub register-cert.pub"
 set +x
 
-for file in ${FILES} ; do 
+for file in ${OUTPUT_FILES} ; do 
   if [ ! -e ${file} ] ; then
       echo "File ${file} missing. Something went wrong"
       exit 1
@@ -48,4 +50,4 @@ for file in ${FILES} ; do
 done
 
 echo "files created:"
-echo "${FILES}"
+echo "${OUTPUT_FILES}"
