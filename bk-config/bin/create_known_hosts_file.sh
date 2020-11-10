@@ -2,7 +2,7 @@
 
 
 if [ ! -e /usr/lib/sage/certca/sage_beekeeper_ca.pub ] ; then
-    echo CA public key not found!
+    echo "CA public key not found!"
     exit 1
 fi 
 
@@ -12,6 +12,9 @@ if [ $# -eq 0 ]
     echo "Usage: create_known_hosts_file.sh HOST PORT"
     echo ""
     echo "    example: create_known_hosts_file.sh host.docker.internal 20022"
+    echo ""
+    echo "   HOST: the name of the beekeeper host the client is going to connect to"
+    echo "   PORT: the port of the above mentioned host"
     echo ""
     exit 1
 fi
