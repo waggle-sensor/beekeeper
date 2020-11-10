@@ -2,7 +2,7 @@
 
 
 if [ -e /usr/lib/sage/certca/sage_beekeeper_ca ] ; then
-    echo CA already exists..
+    echo "CA already exists.."
     exit 0
 fi 
 
