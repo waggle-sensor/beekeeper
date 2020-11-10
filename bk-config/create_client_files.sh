@@ -1,8 +1,5 @@
-#!/bin/bash
+#!/bin/bash -e
 
-
-
-CONTAINER_CMD='docker run -i --rm --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/:ro sagecontinuum/bk-config'
 
 
 
@@ -16,38 +13,9 @@ if [ ! $# -eq 3 ]
 fi
 
 
-FILES="known_hosts id_rsa_sage_registration-cert.pub id_rsa_sage_registration id_rsa_sage_registration.pub"
-# sage_beekeeper_ca.pub should not be needed, key is alreadu in known_hosts
 
-for file in ${FILES} ; do 
-  if [ -e ${file} ] ; then
-      echo "File ${file} already exists. Delete first."
-      echo "To delete all files: rm ${FILES}"
-      exit 1
-  fi 
-done
-
-set -e
 set -x
 
+docker run -i --rm --name bk-config -v `pwd`:/outputs/ -v beekeeper-config_bk-secrets:/usr/lib/sage/:ro sagecontinuum/bk-config create_client_files.sh $@
 
-${CONTAINER_CMD} create_known_hosts_file.sh $1 $2 > ./known_hosts
 
-${CONTAINER_CMD} create_registration_cert.sh $3 | tail -n 1 > ./register-cert.pub
-
-docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration ./register.pem
-docker cp beekeeper_bk-sshd_1:/usr/lib/sage/registration_keys/id_rsa_sage_registration.pub ./register.pub
-#docker cp beekeeper_bk-sshd_1:/usr/lib/sage/certca/sage_beekeeper_ca.pub .
-
-OUTPUT_FILES="known_hosts register.pem register.pub register-cert.pub"
-set +x
-
-for file in ${OUTPUT_FILES} ; do 
-  if [ ! -e ${file} ] ; then
-      echo "File ${file} missing. Something went wrong"
-      exit 1
-  fi 
-done
-
-echo "files created:"
-echo "${OUTPUT_FILES}"
