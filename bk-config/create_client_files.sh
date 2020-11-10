@@ -31,7 +31,7 @@ set -e
 set -x
 
 
-${CONTAINER_CMD} create_known_hosts_file.sh host.docker.internal 20022 > ./known_hosts
+${CONTAINER_CMD} create_known_hosts_file.sh $1 $2 > ./known_hosts
 
 ${CONTAINER_CMD} create_registration_cert.sh $3 | tail -n 1 > ./register-cert.pub
 
