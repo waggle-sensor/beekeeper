@@ -25,7 +25,9 @@ Afterwards you can start beekeeper.
 # create client files (e.g. for a node) 
 
 ```bash
-./create_client_files.sh
+./create_client_files.sh  HOST PORT MINUTES
+e.g
+./create_client_files.sh host.docker.internal 20022 15
 ```
 
 
