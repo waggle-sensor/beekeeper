@@ -43,3 +43,4 @@ COPY ROOTFS/ /
 
 EXPOSE 22
 CMD ["/usr/bin/supervisord"]
+#CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
