@@ -1,8 +1,8 @@
 #!/bin/bash
 
 
-if [ ! -e /usr/lib/sage/certca/sage_beekeeper_ca.pub ] ; then
-    echo "CA public key not found!"
+if [ ! -e /usr/lib/sage/bk-server/id_rsa_sage_beekeeper.pub ] ; then
+    echo "beekeeper public key not found!"
     exit 1
 fi 
 
@@ -21,4 +21,4 @@ fi
 
 # example prefix [host.docker.internal]:20022
 
-echo '['$1']:'$2 $(cat /usr/lib/sage/certca/sage_beekeeper_ca.pub)
+echo '['$1']:'$2 $(cat /usr/lib/sage/bk-server/id_rsa_sage_beekeeper.pub)
