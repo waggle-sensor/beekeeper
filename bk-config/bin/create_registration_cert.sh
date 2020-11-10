@@ -6,6 +6,7 @@ if [ $# -eq 0 ]
   then
     echo "Usage: create_registration_cert.sh MINUTES"
     echo ""
+    echo "    MINUTES: the length of time (in minutes) the certificate is valid for"
     exit 1
 fi
 
