@@ -9,6 +9,10 @@ if [ ! $# -eq 3 ]
     echo ""
     echo "    example: create_client_files.sh host.docker.internal 20022 15"
     echo ""
+    echo "     HOST: the name of the beekeeper host the client is going to connect to"
+    echo "     PORT: the port of the above mentioned host"
+    echo "     MINUTES: the length of time (in minutes) the certificate is valid for"
+    echo ""
     exit 1
 fi
 
