@@ -2,7 +2,7 @@
 
 
 
-CONTAINER_CMD='docker run -i --rm --network beekeeper_default --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/:ro sagecontinuum/bk-config'
+CONTAINER_CMD='docker run -i --rm --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/:ro sagecontinuum/bk-config'
 
 
 
