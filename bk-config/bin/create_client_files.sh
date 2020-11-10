@@ -32,13 +32,13 @@ set -x
 
 create_known_hosts_file.sh $1 $2 > ./known_hosts
 
-create_registration_cert.sh $3 | tail -n 1 > ./register-cert.pub
+create_registration_cert.sh $3 | tail -n 1 > ./register.pem-cert.pub
 
 cp /usr/lib/sage/registration_keys/id_rsa_sage_registration ./register.pem
 cp /usr/lib/sage/registration_keys/id_rsa_sage_registration.pub ./register.pub
 
 
-OUTPUT_FILES="known_hosts register.pem register.pub register-cert.pub"
+OUTPUT_FILES="known_hosts register.pem register.pub register.pem-cert.pub"
 set +x
 
 for file in ${OUTPUT_FILES} ; do 
