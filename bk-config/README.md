@@ -13,7 +13,7 @@ docker build -t sagecontinuum/bk-config .
 # Create CA and beekeeper key-pairs and certificates and registration key (NOT registration cert)
 
 ```bash
-docker run -ti --rm --network beekeeper_default --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/ sagecontinuum/bk-config
+docker run -ti --rm --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/ sagecontinuum/bk-config
 
 
 init-keys.sh
