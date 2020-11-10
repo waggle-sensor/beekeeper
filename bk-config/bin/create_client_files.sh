@@ -18,14 +18,14 @@ fi
 
 cd /outputs
 
+OUTPUT_FILES="known_hosts register.pem register.pub register.pem-cert.pub"
 
-FILES="known_hosts id_rsa_sage_registration-cert.pub id_rsa_sage_registration id_rsa_sage_registration.pub"
 # sage_beekeeper_ca.pub should not be needed, key is alreadu in known_hosts
 
-for file in ${FILES} ; do 
+for file in ${OUTPUT_FILES} ; do 
   if [ -e ${file} ] ; then
       echo "File ${file} already exists. Delete first."
-      echo "To delete all files: rm ${FILES}"
+      echo "To delete all files: rm ${OUTPUT_FILES}"
       exit 1
   fi 
 done
@@ -42,7 +42,7 @@ cp /usr/lib/sage/registration_keys/id_rsa_sage_registration ./register.pem
 cp /usr/lib/sage/registration_keys/id_rsa_sage_registration.pub ./register.pub
 
 
-OUTPUT_FILES="known_hosts register.pem register.pub register.pem-cert.pub"
+
 set +x
 
 for file in ${OUTPUT_FILES} ; do 
