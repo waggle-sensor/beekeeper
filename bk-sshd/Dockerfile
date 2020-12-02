@@ -5,7 +5,9 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     curl \
