@@ -13,10 +13,8 @@ docker build -t sagecontinuum/bk-config .
 # Create CA and beekeeper key-pairs and certificates and registration key (NOT registration cert)
 
 ```bash
-docker run -ti --rm --name bk-config -v beekeeper-config_bk-secrets:/usr/lib/sage/ sagecontinuum/bk-config
-
-
-init-keys.sh
+cd ..
+./init-keys.sh new
 ```
 
 Afterwards you can start beekeeper.
@@ -26,8 +24,15 @@ Afterwards you can start beekeeper.
 
 ```bash
 ./create_client_files.sh  HOST PORT MINUTES
-e.g
+
+# for docker:
 ./create_client_files.sh host.docker.internal 20022 15
+
+
+# for vagrant (if beekeeper runs on the host):
+./create_client_files.sh 10.0.2.2 20022 15
+
+
 ```
 
 
@@ -43,3 +48,12 @@ OR within bk-config container
 ```bash
 ssh -o UserKnownHostsFile=./known_hosts  sage_registration@bk-sshd -p 22 -i registration_keys/id_rsa_sage_registration register 0000000000000001
 ```
+
+
+# example: copy key files into vagrant
+
+```bash
+cp known_hosts register.pem register.pem-cert.pub ~/git/waggle-edge-stack/ansible/private/
+```
+
+ansible will copy these files if detected
