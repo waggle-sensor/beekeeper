@@ -22,5 +22,13 @@ ssh-keygen -I sage_registration -s /usr/lib/sage/certca/sage_beekeeper_ca -n sag
 
 
 set +x
-cat /sage_temporary/id_rsa_sage_registration-cert.pub
+
+if [ -e /sage_temporary/id_rsa_sage_registration-cert.pub ] ; then
+  echo "created: /sage_temporary/id_rsa_sage_registration-cert.pub"
+  exit 0
+fi
+
+echo "error, file not created: /sage_temporary/id_rsa_sage_registration-cert.pub"
+exit 1
+
 
