@@ -26,11 +26,11 @@ Afterwards you can start beekeeper.
 ./create_client_files.sh  HOST PORT MINUTES
 
 # for docker:
-./create_client_files.sh host.docker.internal 20022 15
+./create_client_files.sh host.docker.internal 20022 +15m
 
 
 # for vagrant (if beekeeper runs on the host):
-./create_client_files.sh 10.0.2.2 20022 15
+./create_client_files.sh 10.0.2.2 20022 +15m
 
 
 ```
