@@ -6,3 +6,5 @@
 /bk-config/register.pem-cert.pub
 /bk-config/register.pub
 /bk-config/sage_beekeeper_ca.pub
+
+.vscode/
