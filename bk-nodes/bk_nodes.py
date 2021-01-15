@@ -13,6 +13,7 @@ import sys
 from flask import Flask
 from flask.views import MethodView
 from flask import jsonify
+from flask.wrappers import Response
 
 from error_response import ErrorResponse
 
@@ -25,8 +26,9 @@ from http import HTTPStatus
 
 import config
 import datetime
+import time
 
-
+import dateutil.parser
 
 table_fields = {}
 table_fields_index ={}
@@ -56,38 +58,55 @@ class BeekeeperDB():
         return
 
 
-    def nodes_log_add(self, node_id, table_name, operation, field_name, new_value, source, effective_time=None, modified_time=None):
-
-        fields = 'node_id, table_name, operation, field_name, new_value, source'
-        values_s = '%s, %s, %s, %s, %s, %s'
-        values = [node_id, table_name, operation, field_name, new_value, source]
+    def nodes_log_add(self, logData):
+        #node_id, table_name, operation, field_name, new_value, source, effective_time=None
+        fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
+        values_s = '%s, %s, %s, %s, %s, %s, %s'
+        #values = [node_id, table_name, operation, field_name, new_value, source]
         
-        if effective_time:
-            fields = fields +', effective_time'
-            values_s = values_s + ', %s'
-            values.append(effective_time) 
+        smallest_timestamp = None 
+        values = []
+        for log in logData:
+            effective_time =  dateutil.parser.parse(log["effective_time"])
+            
+            if (not smallest_timestamp) or (effective_time < smallest_timestamp):
+                smallest_timestamp = effective_time
 
-        if modified_time:
-            fields = fields +', modified_time'  
-            values_s = values_s + ', %s'
-            values.append(modified_time) 
+            value_tuple =(log["node_id"], log["table_name"], log["operation"], log["field_name"], log["new_value"], log["source"], effective_time)
+            values.append(value_tuple)
+
+
+
+
+        self.cur.execute("LOCK TABLES `nodes_log` WRITE")
 
         stmt = f'INSERT INTO `nodes_log` ( {fields} ) VALUES ({values_s})'
-        debug_stmt = stmt
-        for i in values:
-            debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
-        
+        #debug_stmt = stmt
+        for tup in values:
+            debug_stmt = stmt
+            for i in tup:
+                debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
+            print(f'debug_stmt: {debug_stmt}', file=sys.stderr, flush=True)
 
-        print(f'debug_stmt: {debug_stmt}', file=sys.stderr)
-        self.cur.execute(stmt, (*values, ))
+        #print(f'debug_stmt: {debug_stmt}', file=sys.stderr)
+        
+        self.cur.executemany(stmt, values )
+        #self.cur.execute("UNLOCK TABLES")
         self.db.commit()
+
+        try:
+
+            self.replay_log(replay_from_timestamp = smallest_timestamp)
+        except Exception as e:
+            raise Exception("Log replay failed: "+str(e))
+
         return
 
     
     # a) replay log from scratch/zero
     # b) replay log from effective_time (as changes)
     # replay has to merge log entries with same timestamp !
-    def replay_log(self, position=None):
+    def replay_log(self, replay_from_timestamp=None):
 
 
         #fields = ['node_id', 'table_name', 'operation', 'field_name', 'new_value', 'source', 'effective_time', 'modified_time']
@@ -99,13 +118,38 @@ class BeekeeperDB():
 
         fields_str = ', '.join(fields)
 
+        stmt = 'LOCK TABLES `nodes_history` WRITE , `nodes_log` READ'
+       #self.cur.execute(stmt)
+       # stmt = 'LOCK TABLES `nodes_log` READ'
+        self.cur.execute(stmt)
+        #self.db.commit()
+
+        if replay_from_timestamp:
+            # delete all entries newer than replay_from_timestamp in history
+
+           
+
+            stmt = f'DELETE FROM `nodes_history` WHERE `timestamp` >= %s'
+            print(f'statement: {stmt}')
+            try:
+                self.cur.execute(stmt, (replay_from_timestamp,))
+                self.db.commit()
+            except Exception as e:
+                raise Exception("Deleting lastes history failed:" + str(e))
+
+
         nodes_last_state = {}
 
-        # TODO: call operation "upsert"
+        
+        if replay_from_timestamp:
+            stmt = f'SELECT {fields_str} FROM `nodes_log` WHERE `effective_time` >= %s ORDER BY `effective_time`'
+            print(f'statement: {stmt}')
+            self.cur.execute(stmt, (replay_from_timestamp,))
+        else: 
+            stmt = f'SELECT {fields_str} FROM `nodes_log` ORDER BY `effective_time`'
+            print(f'statement: {stmt}')
+            self.cur.execute(stmt)
 
-        stmt = f'SELECT {fields_str} FROM `nodes_log` ORDER BY `effective_time`'
-        print(f'statement: {stmt}')
-        self.cur.execute(stmt)
         while True:
             print(f'loop')
             rows = self.cur.fetchmany(size=10)
@@ -130,8 +174,10 @@ class BeekeeperDB():
                 
                 if 'timestamp' in node_object and node_object['timestamp'] != effective_time:
                     # this is a new timestamp, process old history point first
-                    self.insert_object("nodes_history", node_object)
-                    
+                    try:
+                        self.insert_object("nodes_history", node_object)
+                    except Exception as e:
+                        raise Exception("insert_object failed:" + str(e))
                 # this could be either a new one OR an old one with the same timestamp
                 node_object['id']=node_id
 
@@ -144,10 +190,16 @@ class BeekeeperDB():
         # now insert the last entries of each node:
         for node_id in nodes_last_state:
             node_object = nodes_last_state[node_id]
-            self.insert_object("nodes_history", node_object)
+            try:
+                self.insert_object("nodes_history", node_object)
+            except Exception as e:
+                        raise Exception("insert_object failed:" + str(e))
+
+        stmt = 'UNLOCK TABLES'
+        self.cur.execute(stmt)
                 
 
-    def getLastNodeState(self, node_id):
+    def getNodeState(self, node_id, timestamp=None):
 
         table_name = 'nodes_history'
         fields = table_fields[table_name]
@@ -207,44 +259,83 @@ class BeekeeperDB():
        
 
 
-def test_log():
 
-    bee_db = BeekeeperDB()
-    bee_db.truncate_table("nodes_log")
-    bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val1", "somebody")
-    bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val2", "somebody")
-    bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val3", "somebody")
-    bee_db.nodes_log_add("myid", "nodes", "insert", "project_id", "val1", "somebody")
-    bee_db.nodes_log_add("myid", "nodes", "insert", "project_id", "val2", "somebody", effective_time=datetime.datetime.now()-datetime.timedelta(days= 1))
-    bee_db.truncate_table("nodes_history")
-    bee_db.replay_log()
-
-    result = bee_db.getLastNodeState("myid")
-
-    assert "project_id" in result
-    assert result["project_id"] == "val1"
-
-
-
-class Something(MethodView):
+# /
+class Root(MethodView):
     def get(self):
+        return "SAGE Beekeeper"
+
+# /log
+class Log(MethodView):
+
+
+    # example: curl -X POST -d '[{"node_id": "123", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen"}]' localhost:5000/log
+    
+    def post(self):
+        
         
         try:
-            bee_db = BeekeeperDB()
-            #bee_db.nodes_log_add("myid", "nodes", "insert", "col1", "val1", "somebody")
-            bee_db.truncate_table("nodes_log")
-            bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val1", "somebody")
-            bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val2", "somebody")
-            bee_db.nodes_log_add("myid", "nodes", "insert", "name", "val3", "somebody")
-            bee_db.nodes_log_add("myid", "nodes", "insert", "project_id", "val1", "somebody")
-            bee_db.nodes_log_add("myid", "nodes", "insert", "project_id", "val2", "somebody", effective_time=datetime.datetime.now()-datetime.timedelta(days= 1))
-            bee_db.truncate_table("nodes_history")
-            bee_db.replay_log()
-        except Exception as e:
-            raise ErrorResponse(f'Something went wrong: '+str(e), status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+#request.get
+            postData = request.get_json(force=True, silent=False)
        
+        except Exception as e:
+            
+            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
         
-        return "hello world"
+        if not postData:
+            raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        
+
+        if not isinstance( postData, list ):
+            raise ErrorResponse("array expected", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        try:
+            bee_db = BeekeeperDB()
+
+            logData = []
+            default_effective_time = datetime.datetime.now(datetime.timezone.utc) # this way all operations in this submission have the exact same time
+            for op in postData:
+                
+                for f in ["node_id", "operation", "field_name", "field_value", "source"]:
+                    if f not in op:
+                        raise Exception(f'Field {f} missing.')
+
+                
+                try:
+                    newLogDataEntry = {
+                        "node_id" : op["node_id"],
+                        "table_name": "nodes_log" , 
+                        "operation": op["operation"],  
+                        "field_name" : op["field_name"], 
+                        "new_value" : op["field_value"] , 
+                        "source": op["source"],
+                        "effective_time" : op.get("effective_time", default_effective_time) }
+
+                except Exception as ex:
+                    raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+                logData.append(newLogDataEntry)
+                #print("success", flush=True)
+                
+
+            bee_db.nodes_log_add(logData) #  effective_time=effective_time)
+
+
+
+        
+            
+           
+        except Exception as e:
+            #raise ErrorResponse(f"Unexpected error: { sys.exc_info()[0] } {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
+        response = {"success" : 1}
+        return response
+
+
+    def get(self):
+        return "try POST..."
 
 
 
@@ -254,9 +345,8 @@ app.config["PROPAGATE_EXCEPTIONS"] = True
 #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
 
-app.add_url_rule('/', view_func=Something.as_view('appsBase'))
-
-
+app.add_url_rule('/', view_func=Root.as_view('root'))
+app.add_url_rule('/log', view_func=Log.as_view('log'))
 
 
 @app.errorhandler(ErrorResponse)

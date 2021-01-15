@@ -39,8 +39,8 @@ services:
   db:
     image: mysql:8.0.20
     env_file: mysql.env
-    #volumes:
-     # - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    volumes:
+      - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
       #- beekeeper-db:/var/lib/mysql
 
 volumes:

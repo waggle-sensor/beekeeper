@@ -16,6 +16,6 @@ RUN /usr/local/bin/python -m pip install --upgrade pip
 COPY  . /usr/src/app
 RUN pip install -r requirements.txt
 
-#CMD ./bk-nodes.py
-CMD gunicorn bk-nodes:app --bind=0.0.0.0:5000
+#CMD ./bk_nodes.py
+CMD gunicorn bk_nodes:app --bind=0.0.0.0:5000
 
