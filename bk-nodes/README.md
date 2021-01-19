@@ -1,8 +1,8 @@
 
 ```bash
-docker exec -ti beekeeper_bk-nodes_1 pytest  ./test_bk_nodes.py
+docker exec -ti beekeeper_bk-nodes_1 pytest -rP ./test_bk_nodes.py
 ```
-
+`-rP` shows more output
 
 debug db
 ```bash

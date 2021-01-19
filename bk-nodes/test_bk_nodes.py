@@ -34,12 +34,15 @@ def test_log_insert(client):
     bee_db.truncate_table("nodes_history")
 
     test_data = []
-    test_time = datetime.datetime.now()
+    test_time = datetime.datetime.now().replace(microsecond=0)
     
-    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen", "effective_time": str(test_time -datetime.timedelta(days= 1))})
-    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "project_id", "field_value": "project_X", "effective_time": str(test_time -datetime.timedelta(days= 2))})
-    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "mode", "field_value": "active", "effective_time": str(test_time -datetime.timedelta(days= 3))})
-    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen2", "effective_time": str(test_time -datetime.timedelta(days= 4))})
+    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen", "effective_time": (test_time -datetime.timedelta(days= 1)).isoformat()})
+    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "project_id", "field_value": "project_X", "effective_time": (test_time -datetime.timedelta(days= 2)).isoformat()})
+    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "mode", "field_value": "active", "effective_time": (test_time -datetime.timedelta(days= 3)).isoformat()})
+    test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen2", "effective_time": (test_time -datetime.timedelta(days= 4)).isoformat()})
+ 
+
+
 
     rv = client.post('/log', data = json.dumps(test_data))
     
@@ -49,7 +52,15 @@ def test_log_insert(client):
     
 
 
+    rv = client.get(f'/state/123')
+    
+    result = rv.get_json()
+    print(result)
+    assert 'error' not in result
+    assert 'data' in result
+    d =  result["data"]
 
+    assert d ==  {'address': None, 'altitude': None, 'id': '123', 'internet_connection': None, 'mode': 'active', 'name': 'Rumpelstilzchen', 'position': None, 'project_id': 'project_X', 'server_node': None, 'timestamp': (test_time -datetime.timedelta(days= 1)).isoformat()}
 
 
 
