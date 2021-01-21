@@ -21,7 +21,7 @@ jobs:
       - name: Wait for docker-compose services
         run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper_"  ] ; do echo waiting... ; sleep 2 ; done
       - name: Test bk-nodes
-        run: docker exec beekeeper_bk-nodes_1 pytest ./test_bk_nodes.py
+        run: docker exec beekeeper_bk-nodes_1 /bin/ash -c 'coverage run -m pytest -v  &&  coverage report -m'
       #- name: Test docker images run
       #  run: |
       #    docker volume create --name=beekeeper-config_bk-secrets

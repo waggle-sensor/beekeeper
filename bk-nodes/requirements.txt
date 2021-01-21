@@ -1,7 +1,7 @@
 Flask
 mysqlclient
 pytest
-#coverage
+coverage
 #middleware
 requests
 #python-jenkins
