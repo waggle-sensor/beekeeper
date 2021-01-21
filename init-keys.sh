@@ -30,7 +30,7 @@ if [ "${1}_" == "new_" ] ; then
     pushd bk-config
     docker build -t sagecontinuum/bk-config .
     popd
-    docker run -ti --rm --name bk-config -v ${SECRET_VOLUME}:/usr/lib/sage/ sagecontinuum/bk-config init-keys.sh
+    docker run --rm --name bk-config -v ${SECRET_VOLUME}:/usr/lib/sage/ sagecontinuum/bk-config init-keys.sh
 
     set +x
     exit 0
