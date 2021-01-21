@@ -78,3 +78,10 @@ def test_log_insert(client):
 
 
 
+
+def test_error(client):
+    rv = client.get(f'/state/foobar')
+    
+    result = rv.get_json()
+    print(result)
+    assert b'error' in rv.data
