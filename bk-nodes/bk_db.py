@@ -2,7 +2,7 @@
 import MySQLdb
 import config
 import dateutil.parser
-
+import sys
 
 table_fields = {}
 table_fields_index ={}
@@ -16,7 +16,7 @@ class BeekeeperDB():
         
         if not config.mysql_db:
             raise Exception("MYSQL_DATABASE is not defined")
-        
+
         if not config.mysql_user:
             raise Exception("MYSQL_USER is not defined")
 
