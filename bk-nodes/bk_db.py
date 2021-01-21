@@ -119,7 +119,10 @@ class BeekeeperDB():
             replay_from_timestamp = replay_from_timestamp.replace(microsecond=0)
 
             stmt = f'DELETE FROM `nodes_history` WHERE `timestamp` >= %s'
-            print(f'statement: {stmt}', flush=True)
+            
+            debug_stmt = stmt
+            debug_stmt = debug_stmt.replace("%s", f'"{replay_from_timestamp.isoformat()}"', 1)
+            print(f'debug_stmt: {debug_stmt}', flush=True)
             try:
                 self.cur.execute(stmt, (replay_from_timestamp,))
                 self.db.commit()
