@@ -2,6 +2,7 @@ version: '3.7'
 services:
 
   bk-register:
+    image: waggle/beekeeper-register
     build: bk-register
     restart: always
     init: true
@@ -11,6 +12,7 @@ services:
       - "bk-secrets:/usr/lib/sage/:ro"
 
   bk-sshd:
+    image: waggle/beekeeper-sshd
     build: bk-sshd
     restart: always
     depends_on:
@@ -23,7 +25,7 @@ services:
       - "bk-secrets:/usr/lib/sage/:ro"
 
   bk-nodes:
-    image: beekeeper/bk-nodes
+    image: waggle/beekeeper-nodes
     build: bk-nodes
     restart: always
     env_file: mysql.env
