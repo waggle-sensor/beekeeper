@@ -84,6 +84,10 @@ class BeekeeperDB():
         except Exception as e:
             raise Exception("Log replay failed: "+str(e))
 
+        
+        self.cur.execute("UNLOCK TABLES")
+        self.db.commit()
+
         return
 
     
