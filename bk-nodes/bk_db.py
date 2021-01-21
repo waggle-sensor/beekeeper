@@ -3,6 +3,7 @@ import MySQLdb
 import config
 import dateutil.parser
 import sys
+import time
 
 table_fields = {}
 table_fields_index ={}
