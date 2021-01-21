@@ -12,7 +12,16 @@ class BeekeeperDB():
     def __init__ ( self , retries=60) :
 
         if not config.mysql_host:
-            raise Exception("mysql_host is not defined")
+            raise Exception("MYSQL_HOST is not defined")
+        
+        if not config.mysql_db:
+            raise Exception("MYSQL_DATABASE is not defined")
+        
+        if not config.mysql_user:
+            raise Exception("MYSQL_USER is not defined")
+
+        if not config.mysql_password:
+            raise Exception("MYSQL_PASSWORD is not defined")
         
         count = 0
         while True:
