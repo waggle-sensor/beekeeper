@@ -7,20 +7,20 @@ on:
     branches: [ master ]
 
 jobs:
-  build_docker_image:
-    name: Build Docker Images
-    runs-on: ubuntu-latest
+  job1:
+    name: Build and test docker images
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - name: Build docker images
         run: docker-compose build
-      - name: create keys
+      - name: Create keys
         run: ./init-keys.sh new
       - name: Start docker-compose
         run: docker-compose up -d
       - name: Wait for docker-compose services
         run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper_"  ] ; do echo waiting... ; sleep 2 ; done
-      - name: test bk-nodes
+      - name: Test bk-nodes
         run: docker exec beekeeper_bk-nodes_1 pytest ./test_bk_nodes.py
       #- name: Test docker images run
       #  run: |
