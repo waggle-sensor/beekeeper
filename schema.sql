@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     `altitude`              DECIMAL(11, 1), /* or elevation ? sea level or ground ?*/
     `server_node`           VARCHAR(16), /* identifies compute nodes that runs k3s server */
     `internet_connection`   TEXT,  /* optional: instruction how node gets internet access */
-    `registration_event`    TIMESTAMP NOT NULL, /* last time (not first!) the node registered (only needed to create a first log entry for node) */
+    `registration_event`    TIMESTAMP, /* last time (not first!) the node registered (only needed to create a first log entry for node) */
     PRIMARY KEY(`id`, `timestamp`)
 );
 
