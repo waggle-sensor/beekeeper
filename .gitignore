@@ -1,2 +1,10 @@
 *.DS_Store
 *.pyc
+
+/bk-config/known_hosts
+/bk-config/register.pem
+/bk-config/register.pem-cert.pub
+/bk-config/register.pub
+/bk-config/sage_beekeeper_ca.pub
+
+.vscode/

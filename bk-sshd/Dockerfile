@@ -5,7 +5,11 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+#FROM ubuntu:18.04
+
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -31,6 +35,7 @@ RUN sed -i -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     -e 's/^.\?UsePAM.*/UsePAM no/' \
     -e 's/^.\?LogLevel.*/LogLevel VERBOSE/' \
     /etc/ssh/sshd_config
+
 
 RUN echo "HostKey /usr/lib/sage/bk-server/id_rsa_sage_beekeeper" >> /etc/ssh/sshd_config
 RUN echo "HostCertificate /usr/lib/sage/bk-server/id_rsa_sage_beekeeper-cert.pub" >> /etc/ssh/sshd_config

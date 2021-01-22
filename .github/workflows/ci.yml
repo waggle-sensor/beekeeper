@@ -7,19 +7,29 @@ on:
     branches: [ master ]
 
 jobs:
-  build_docker_image:
-    name: Build Docker Images
-    runs-on: ubuntu-latest
+  job1:
+    name: Build and test docker images
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Build the beekeeper docker images
+      - name: Build docker images
         run: docker-compose build
-      - name: Test docker images run
-        run: |
-          docker volume create --name=beekeeper-config_bk-secrets
-          docker-compose run bk-sshd ls
-          docker-compose run bk-sshd ls
-      - name: Run unit-tests (bk-sshd)
-        run: ./bk-sshd/unit-tests/unit-tests.sh
-      - name: Run unit-tests (bk-register)
-        run: ./bk-register/unit-tests/unit-tests.sh
+      - name: Create keys
+        run: ./init-keys.sh new
+      - name: Start docker-compose
+        run: docker-compose up -d
+      - name: Wait for docker-compose services
+        run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper_"  ] ; do echo waiting... ; sleep 2 ; done
+      - name: Test bk-nodes
+        run: docker exec beekeeper_bk-nodes_1 /bin/ash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 90'
+      #- name: Test docker images run
+      #  run: |
+      #    docker volume create --name=beekeeper-config_bk-secrets
+      #    docker-compose run bk-sshd ls
+      #    docker-compose run bk-sshd ls
+      #- name: Run unit-tests (bk-sshd)
+      #  run: ./bk-sshd/unit-tests/unit-tests.sh
+      #- name: Run unit-tests (bk-register)
+      #  run: ./bk-register/unit-tests/unit-tests.sh
+      - name: Clean-up
+        run: docker-compose down

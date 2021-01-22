@@ -1,0 +1,13 @@
+Flask
+mysqlclient
+pytest
+coverage
+#middleware
+requests
+#python-jenkins
+#xmltodict
+#prometheus_client
+#pyyaml
+gunicorn
+Werkzeug
+python-dateutil

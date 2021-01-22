@@ -10,6 +10,30 @@ The beekeeper is responsible for the following:
 communication keys used by the end-points
 3. administrative portal for collecting the general health of all end-points
 
+
+## start beekeeper
+
+### 1) Initialize: Create CA and server keys
+
+To create new CA and server keys:
+```bash
+./init-keys.sh new
+```
+
+For testing purposes you can also use existing keys from sub-directory `./test-keys`:
+
+```bash
+./init-keys.sh test  # WARNING: Only use for testing/development
+```
+
+### 2) Start beekeeper
+
+```bash
+docker-compose up --build
+```
+
+
+
 ## Beekeeper Config Dependency
 
 The beekeeper server is dependent on the (beekeeper-config)[https://github.com/waggle-sensor/beekeeper-config] (private repo) to generate and share necessary
