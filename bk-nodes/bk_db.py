@@ -51,7 +51,7 @@ class BeekeeperDB():
         smallest_timestamp = None 
         values = []
         for log in logData:
-            effective_time =  dateutil.parser.parse(log["effective_time"])
+            effective_time =  dateutil.parser.parse(log["effective_time"]).replace(microsecond=0)
             
             if (not smallest_timestamp) or (effective_time < smallest_timestamp):
                 smallest_timestamp = effective_time
@@ -208,10 +208,16 @@ class BeekeeperDB():
         print(f'statement: {stmt}', flush=True)
         self.cur.execute(stmt, (node_id,))
         row = self.cur.fetchone()
+        if not row:
+            raise Exception("Node not found")
+
 
         result = {}
         for i in range(len(row)):
             result[fields[i]] = row[i]
+
+        if not result:
+            raise Exception("Node not found")
 
         return result
 

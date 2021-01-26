@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
     `new_value`               VARCHAR(64),
     `source`                  VARCHAR(64), /* who wrote this, node or admin */
     `effective_time`          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `modified_time`           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `modified_time`           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (`effective_time`)
 );
 /* INSERT ... ON DUPLICATE KEY UPDATE   */
 /* sort updates by effective_time, then index */

@@ -84,14 +84,14 @@ class sshkeygen:
         if not (self.results.get("private_key") and self.results.get("public_key")):
             raise Exception("Must create key-pair first")
 
-        user = "ep-{}".format(name)
+        user = "node-{}".format(name)
         cmd = [
             "ssh-keygen",
-            "-I",
+            "-I", # certificate_identity
             name,
             "-s",
             ca_path,
-            "-n",
+            "-n", # one or more principals (user or host names) 
             user,
             "-O",
             "no-agent-forwarding",

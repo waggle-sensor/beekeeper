@@ -27,7 +27,7 @@ from http import HTTPStatus
 import config
 import datetime
 import time
-
+import json
 
 
 import bk_db
@@ -63,49 +63,60 @@ class Log(MethodView):
             raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         
+        listData = None
+        if isinstance( postData, dict ):
+            listData = [ postData ]
+            print("Putting postData into array ", flush=True)
+        else:
+            listData = postData
+            print("Use postData as is ", flush=True)
 
-        if not isinstance( postData, list ):
-            raise ErrorResponse("array expected", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
+        if not isinstance( listData, list ):
+            raise ErrorResponse("list expected", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            
+       
+        bee_db = None
         try:
             bee_db = BeekeeperDB()
+        except Exception as e:
+            raise ErrorResponse(f"Could not create BeekeeperDB: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-            logData = []
-            default_effective_time = datetime.datetime.now(datetime.timezone.utc) # this way all operations in this submission have the exact same time
-            for op in postData:
-                
-                for f in ["node_id", "operation", "field_name", "field_value", "source"]:
-                    if f not in op:
-                        raise Exception(f'Field {f} missing.')
 
-                
-                try:
-                    newLogDataEntry = {
-                        "node_id" : op["node_id"],
-                        "table_name": "nodes_log" , 
-                        "operation": op["operation"],  
-                        "field_name" : op["field_name"], 
-                        "new_value" : op["field_value"] , 
-                        "source": op["source"],
-                        "effective_time" : op.get("effective_time", default_effective_time) }
+        logData = []
+        default_effective_time = datetime.datetime.now(datetime.timezone.utc) # this way all operations in this submission have the exact same time
+        for op in listData:
+            
+            for f in ["node_id", "operation", "field_name", "field_value", "source"]:
+                if f not in op:
+                    raise Exception(f'Field {f} missing. Got: {json.dumps(op)}')
 
-                except Exception as ex:
-                    raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            
+            try:
+                newLogDataEntry = {
+                    "node_id" : op["node_id"],
+                    "table_name": "nodes_log" , 
+                    "operation": op["operation"],  
+                    "field_name" : op["field_name"], 
+                    "new_value" : op["field_value"] , 
+                    "source": op["source"],
+                    "effective_time" : op.get("effective_time", default_effective_time.isoformat()) }
 
-                logData.append(newLogDataEntry)
-                #print("success", flush=True)
-                
+            except Exception as ex:
+                raise ErrorResponse(f"Unexpected error in creating newLogDataEntry : {ex}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
+            logData.append(newLogDataEntry)
+            #print("success", flush=True)
+            
+        try:
             bee_db.nodes_log_add(logData) #  effective_time=effective_time)
-
+        except Exception as ex:
+                raise ErrorResponse(f"nodes_log_add failed: {ex}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
         
             
            
-        except Exception as e:
-            #raise ErrorResponse(f"Unexpected error: { sys.exc_info()[0] } {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
         
         response = {"success" : 1}
         return response
