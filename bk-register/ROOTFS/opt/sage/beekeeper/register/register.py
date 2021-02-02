@@ -32,8 +32,7 @@ logger.addHandler(handler)
 
 BASE_KEY_DIR = "/usr/lib/sage"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
-USER_SERVER = "http://bk-sshd"
-
+BK_SSHD_SERVER = os.getenv( "BK_SSHD_SERVER", "http://bk-sshd")
 BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-nodes:5000")
 
 @app.route("/register")
@@ -75,7 +74,7 @@ def register():
         }
 
         # request for EP user be added
-        url = os.path.join(USER_SERVER, "adduser")
+        url = os.path.join(BK_SSHD_SERVER, "adduser")
         post_results = requests.post(url, data=data)
         if not post_results.ok:
             raise Exception(
