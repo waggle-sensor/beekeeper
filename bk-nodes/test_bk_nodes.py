@@ -66,6 +66,7 @@ def test_log_insert(client):
     assert d ==  {
         'address': None, 
         'altitude': None, 
+        'beehive': None,
         'id': '123', 
         'internet_connection': None, 
         'mode': 'active', 

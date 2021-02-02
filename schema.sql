@@ -1,7 +1,7 @@
 
 
 
-/* log of update operations*/
+/* log of update operations */
 CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
     `id`                      INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `node_id`                 VARCHAR(16) NOT NULL ,
@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
     `field_name`              VARCHAR(64),
     `new_value`               VARCHAR(64),
     `source`                  VARCHAR(64), /* who wrote this, node or admin */
-    `effective_time`          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `modified_time`           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `effective_time`          TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP,
+    `modified_time`           TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP,
     INDEX (`effective_time`)
 );
 /* INSERT ... ON DUPLICATE KEY UPDATE   */
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
 
 CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     `id`                    VARCHAR(16) NOT NULL,  /*  typically MAC address of the "main" device  */
-    `timestamp`             TIMESTAMP NOT NULL,
+    `timestamp`             TIMESTAMP(0) NOT NULL,
     `name`                  VARCHAR(64),
     `project_id`            VARCHAR(64),
     `mode`                  VARCHAR(64),
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     `server_node`           VARCHAR(16), /* identifies compute nodes that runs k3s server */
     `internet_connection`   TEXT,  /* optional: instruction how node gets internet access */
     `beehive`               VARCHAR(64), /* (id of) beehive server the node is supposed to be using */
-    `registration_event`    TIMESTAMP, /* last time (not first!) the node registered (only needed to create a first log entry for node) */
+    `registration_event`    TIMESTAMP(0), /* last time (not first!) the node registered (only needed to create a first log entry for node) */
     PRIMARY KEY(`id`, `timestamp`)
 );
 
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.beehives (
     `id`                  VARCHAR(64),
     `url`                 VARCHAR(256),
     PRIMARY KEY(`id`)
-)
+);
 
 CREATE TABLE IF NOT EXISTS Beekeeper.sensor_instances (
     `node_id`               VARCHAR(16) NOT NULL,
