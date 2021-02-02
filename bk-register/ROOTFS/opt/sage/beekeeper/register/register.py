@@ -95,7 +95,7 @@ def register():
     try:
         bk_api_response = requests.post(f'{BEEKEEPER_DB_API}/log',data=json.dumps(payload))
     except Exception as e:
-        return f"Error: X Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: {str(e)}"
+        return f"Error: X Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: {str(e)}", 500
 
     if bk_api_response.status_code != 200 :
         con  = bk_api_response.content
