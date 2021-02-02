@@ -1,4 +1,7 @@
 
+
+This document contains commands to help developing and testing beekeeper.
+
 # go into sshd container
 
 docker exec -it beekeeper_bk-sshd_1 /bin/bash
@@ -31,12 +34,12 @@ chmod 600 id_rsa-tunnel
 
 # create tunnel (from node to beekeeper ,)
 ```bash
-ssh -vv -N -R /home_dirs/ep-0000000000000001/rtun.sock:localhost:22 ep-0000000000000001@127.0.0.1 -p 22 -i id_rsa-tunnel
+ssh -vv -N -R /home_dirs/node-0000000000000001/rtun.sock:localhost:22 node-0000000000000001@127.0.0.1 -p 22 -i id_rsa-tunnel
 ```
 
 # access tunnel from within beekeeper
 ```bash
 docker exec -it beekeeper_bk-sshd_1 /bin/bash
-ssh -o 'ProxyCommand=socat UNIX:/home_dirs/ep-0000000000000001/rtun.sock -' vagrant@foo
+ssh -o 'ProxyCommand=socat UNIX:/home_dirs/node-0000000000000001/rtun.sock -' vagrant@foo
 (password: vagrant)
 ```

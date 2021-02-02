@@ -79,7 +79,7 @@ An example of the `ssh` command to establish the tunnel is:
 ssh -N  -R /home_dir/<end-point id>/rtun.sock:localhost:22 <node id>@<beekeeper url> -p 20022 -i /path/to/id_rsa_beekeeper_tunnel
 
 # specific example for end-point `123456`
-ssh -N  -R /home_dirs/ep-123456/rtun.sock:localhost:22 ep-123456@127.0.0.1 -p 20022 -i id_rsa_beekeeper_tunnel
+ssh -N  -R /home_dirs/node-123456/rtun.sock:localhost:22 node-123456@127.0.0.1 -p 20022 -i id_rsa_beekeeper_tunnel
 ```
 
 The beekeeper creates a private socket for the end-point to facilitate the
@@ -100,8 +100,8 @@ on the end-point via the socket.
 ```
 ssh -o 'ProxyCommand=socat UNIX:/home_dirs/<end-point id>/rtun.sock -' <user>@foo
 
-# specific example for end-point 123456 (note: my test environment did not have a ep-123456 user)
-ssh -o 'ProxyCommand=socat UNIX:/home_dirs/ep-123456/rtun.sock -' jswantek@foo
+# specific example for end-point 123456 (note: my test environment did not have a node-123456 user)
+ssh -o 'ProxyCommand=socat UNIX:/home_dirs/node-123456/rtun.sock -' jswantek@foo
 ```
 
 In this case the `<user>` is a valid user on the end-point.  It is **recommended**

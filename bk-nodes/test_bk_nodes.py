@@ -27,7 +27,7 @@ def test_root(client):
     rv = client.get('/')
     assert b'SAGE Beekeeper' in rv.data
 
-
+# TODO test full replay without timestamp
 def test_log_insert(client):
     bee_db = bk_nodes.BeekeeperDB()
     bee_db.truncate_table("nodes_log")
@@ -66,6 +66,7 @@ def test_log_insert(client):
     assert d ==  {
         'address': None, 
         'altitude': None, 
+        'beehive': None,
         'id': '123', 
         'internet_connection': None, 
         'mode': 'active', 

@@ -11,8 +11,11 @@ FROM ubuntu:20.04
 EXPOSE 80
 RUN apt-get update && apt-get install -y \
   openssh-client \
-  python3-flask \
-  python3-requests
+  python3-pip 
+  
+
+COPY requirements.txt /
+RUN pip3 install -r /requirements.txt
 
 COPY ROOTFS/ /
 

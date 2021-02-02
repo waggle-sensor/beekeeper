@@ -8,3 +8,5 @@
 /bk-config/sage_beekeeper_ca.pub
 
 .vscode/
+
+.coverage
