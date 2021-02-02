@@ -100,7 +100,7 @@ def register():
     if bk_api_response.status_code != 200 :
         con  = bk_api_response.content
         con_str = con.decode("utf-8")
-        return f"Error: Submission to beekeeper DB failed: { con_str}"
+        return f"Error: Submission to beekeeper DB failed: {con_str}", 500
 
 
     return json.dumps(data)
