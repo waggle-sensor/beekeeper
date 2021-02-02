@@ -217,7 +217,7 @@ class BeekeeperDB():
             result[fields[i]] = row[i]
 
         if not result:
-            raise Exception("Node not found")
+            raise Exception("Result dict empty, should not happen")
 
         return result
 
