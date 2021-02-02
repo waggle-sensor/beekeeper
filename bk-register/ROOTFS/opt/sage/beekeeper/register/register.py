@@ -52,10 +52,11 @@ def register():
     try:
         bk_api_result = requests.get(f'{BEEKEEPER_DB_API}').content
     except Exception as e:
-        return f"Error: X Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: {str(e)}"
+        return f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}", 500
 
-    if 'SAGE Beekeeper' != bk_api_result.decode("utf-8").strip():
-        return "Error: Y Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \""+bk_api_result.decode("utf-8")+"\""
+    result_message = bk_api_result.decode("utf-8").strip()
+    if 'SAGE Beekeeper' != result_message:
+        return "Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"", 500
 
     logger.debug("Register user [{}]".format(id))
     try:
