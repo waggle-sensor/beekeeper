@@ -34,7 +34,7 @@ BASE_KEY_DIR = "/usr/lib/sage"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
 USER_SERVER = "http://bk-sshd"
 
-BEEKEEPER_DB_API = "http://bk-nodes:5000"
+BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-nodes:5000")
 
 @app.route("/register")
 def register():
