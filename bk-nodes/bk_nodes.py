@@ -126,13 +126,6 @@ class LatestState(MethodView):
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-        if "timestamp" in node_state:
-            node_state["timestamp"] = node_state["timestamp"].isoformat()
-
-        if "registration_event" in node_state:
-            node_state["registration_event"] = node_state["registration_event"].isoformat()
-
-
         return { "data" : node_state }
 
 
