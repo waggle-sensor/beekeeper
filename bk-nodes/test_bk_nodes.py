@@ -35,7 +35,7 @@ def test_log_insert(client):
 
     test_data = []
     test_time = datetime.datetime.now().replace(microsecond=0)
-    
+
     test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen", "effective_time": (test_time -datetime.timedelta(days= 1)).isoformat()})
     test_data.append({"node_id": "123", "source": "testing", "operation":"insert", "field_name": "project_id", "field_value": "project_X", "effective_time": (test_time -datetime.timedelta(days= 2)).isoformat()})
     for i in range(1, 100):
@@ -48,15 +48,15 @@ def test_log_insert(client):
 
 
     rv = client.post('/log', data = json.dumps(test_data))
-    
+
     result = rv.get_json()
     assert 'error' not in result
     assert 'success' in result
-    
+
 
 
     rv = client.get(f'/state/123')
-    
+
     result = rv.get_json()
     print(result)
     assert 'error' not in result
@@ -64,17 +64,17 @@ def test_log_insert(client):
     d =  result["data"]
 
     assert d ==  {
-        'address': None, 
-        'altitude': None, 
+        'address': None,
+        'altitude': None,
         'beehive': None,
-        'id': '123', 
-        'internet_connection': None, 
-        'mode': 'active', 
-        'name': 'Rumpelstilzchen', 
-        'position': None, 
-        'project_id': 'project_X', 
-        'server_node': None, 
-        'timestamp': (test_time -datetime.timedelta(days= 1)).isoformat(), 
+        'id': '123',
+        'internet_connection': None,
+        'mode': 'active',
+        'name': 'Rumpelstilzchen',
+        'position': None,
+        'project_id': 'project_X',
+        'server_node': None,
+        'timestamp': (test_time -datetime.timedelta(days= 1)).isoformat(),
         'registration_event': (test_time -datetime.timedelta(days= 5)).isoformat()}
 
 
@@ -82,7 +82,7 @@ def test_log_insert(client):
 
 def test_error(client):
     rv = client.get(f'/state/foobar')
-    
+
     result = rv.get_json()
     print(result)
     assert b'error' in rv.data
