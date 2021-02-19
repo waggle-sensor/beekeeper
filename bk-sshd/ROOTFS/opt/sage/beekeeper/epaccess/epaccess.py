@@ -18,8 +18,10 @@ import pwd
 import subprocess as sp
 import stat
 import sys
+import time
+import requests
+import json
 
-app = flask.Flask(__name__)
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -31,6 +33,90 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 USER_HOME_DIR = "/home_dirs"
+
+BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-nodes:5000")
+BEEKEEPER_REGISTER_API = os.getenv("BEEKEEPER_REGISTER_API" ,"http://bk-register:80")
+
+
+
+
+def setup_app():
+
+    while True:
+        # wait for bk-register (because bk-register loads some test data first into DB)
+        try:
+            bk_api_result = requests.get(f'{BEEKEEPER_REGISTER_API}').content
+        except Exception as e:
+            logger.warning(f"Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached, requests.get returned: {str(e)}")
+            time.sleep(2)
+            continue
+
+        result_message = bk_api_result.decode("utf-8").strip()
+        if 'Beekeeper Registration Server' != result_message:
+            logger.warning("Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached: \"{result_message}\"")
+            time.sleep(2)
+            continue
+
+        break
+
+
+    while True:
+        try:
+            bk_api_result = requests.get(f'{BEEKEEPER_DB_API}').content
+        except Exception as e:
+            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}")
+            time.sleep(2)
+            continue
+
+        #print(bk_api_result)
+        result_message = bk_api_result.decode("utf-8").strip()   # bk_api_result.decode("utf-8").strip()
+        if 'SAGE Beekeeper' != result_message:
+            logger.warning("Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
+            time.sleep(2)
+            continue
+
+        break
+
+    logger.debug("Getting list of nodes from beekeeper DB to create home directories and users")
+
+
+
+
+    try:
+        bk_api_response = requests.get(f'{BEEKEEPER_DB_API}/state')
+    except Exception as e:
+        logger.Error(f"Beekeeper DB API ({BEEKEEPER_DB_API}/state) cannot be reached: {str(e)}")
+        sys.exit(1)
+
+    if bk_api_response.status_code != 200:
+        #logger.error("Could not get list of nodes")
+        sys.exit("Could not get list of nodes")
+
+
+    json_str = (bk_api_response.content).decode("utf-8")
+    node_list = json.loads(json_str)
+    node_list = node_list["data"]
+
+    logger.debug(f"Got {len(node_list)} nodes.")
+
+    for node_object in node_list:
+
+
+        if "id" not in node_object:
+            logger.error("Field id missing")
+            continue
+
+        node_id = node_object["id"]
+        logger.debug(f"Adding node {node_id}.")
+
+
+        user = f'node-{node_id}'
+        node_dir = os.path.join(USER_HOME_DIR, user)
+        #if not os.path.isdir(node_dir):
+        _add_user(user)
+
+    return
+
 
 
 def _user_exists(user):
@@ -60,16 +146,20 @@ def _add_user(user):
 
     if _user_exists(user):
         logger.debug("- user [{}] already exists, skipping".format(user))
-    else:
-        cmd = ["useradd", "-mr", "-b", USER_HOME_DIR, "-p", user, user]
-        result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        return
 
-        if result.returncode == 0:
-            logger.debug("- user [{}] add: success".format(user))
-        else:
-            logger.error("- user [{}] add: fail".format(user))
-            # raise exception
-            result.check_returncode()
+
+    cmd = ["useradd", "--create-home", "--system", "--base-dir", USER_HOME_DIR, "--password", user, user]
+    result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    if result.returncode == 0:
+        logger.debug("- user [{}] add: success".format(user))
+        return
+
+
+    logger.error("- user [{}] add: fail".format(user))
+    # raise exception
+    result.check_returncode()
 
 
 def _save_keys(user, private_key=None, public_key=None, certificate=None):
@@ -139,6 +229,11 @@ def _del_user(user):
             result.check_returncode()
 
 
+setup_app()
+
+app = flask.Flask(__name__)
+
+
 @app.route("/deluser", methods=["POST"])
 def deluser():
     """API to delete the user `user` from the system
@@ -193,15 +288,10 @@ def adduser():
     return "User [{}] added".format(user)
 
 
-if __name__ == "__main__":
-    # scan through the user home directories and ensure the users exist
-    logger.debug("Creating users from previous instance")
-    users = [
-        d
-        for d in os.listdir(USER_HOME_DIR)
-        if os.path.isdir(os.path.join(USER_HOME_DIR, d))
-    ]
-    for user in users:
-        _add_user(user)
+#if __name__ == "__main__":
 
-    app.run(host="0.0.0.0", port=80)
+
+
+
+    #app.run(host="0.0.0.0", port=80)
+    #app.run(host="0.0.0.0")

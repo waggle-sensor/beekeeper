@@ -9,7 +9,7 @@ services:
     ports:
       - "127.0.0.1:24181:80"
     volumes:
-      - "bk-secrets:/usr/lib/sage/:ro"
+      - "bk-secrets:/usr/lib/waggle/:ro"
 
   bk-sshd:
     image: waggle/beekeeper-sshd
@@ -18,11 +18,13 @@ services:
     depends_on:
       - bk-register
     ports:
-      - "20022:22"
+      - "127.0.0.1:20022:22"
       - "127.0.0.1:24182:80"
+    environment:
+      SSHD_FLAGS: "" # "-ddd"
     volumes:
-      - "bk-homedirs:/home_dirs"
-      - "bk-secrets:/usr/lib/sage/:ro"
+      #- "bk-homedirs:/home_dirs"
+      - "bk-secrets:/usr/lib/waggle/:ro"
 
   bk-nodes:
     image: waggle/beekeeper-nodes
@@ -46,7 +48,7 @@ services:
       #- beekeeper-db:/var/lib/mysql
 
 volumes:
-  bk-homedirs:
+  #bk-homedirs:
   bk-secrets:
     external:
       name: beekeeper-config_bk-secrets
