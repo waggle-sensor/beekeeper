@@ -34,7 +34,7 @@ logger.addHandler(handler)
 BASE_KEY_DIR = "/usr/lib/waggle"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
 BK_SSHD_SERVER = os.getenv( "BK_SSHD_SERVER", "http://bk-sshd")
-BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-nodes:5000")
+BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
 
 
 def get_all_nodes():

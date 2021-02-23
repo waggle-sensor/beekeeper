@@ -1,6 +1,6 @@
 
 ```bash
-docker exec -ti beekeeper_bk-nodes_1 /bin/ash -c 'coverage run -m pytest -v  &&  coverage report -m'
+docker exec -ti beekeeper_bk-api_1 /bin/ash -c 'coverage run -m pytest -v  &&  coverage report -m'
 ```
 `-rP` shows more output
 
