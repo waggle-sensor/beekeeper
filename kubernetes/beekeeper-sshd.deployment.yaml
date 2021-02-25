@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: beekeeper-sshd
+  name: beekeeper-sshd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: beekeeper-sshd
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        k8s-app: beekeeper-sshd
+    spec:
+      containers:
+      - image: waggle/beekeeper-sshd:latest
+        name: beekeeper-sshd
+        volumeMounts:
+          - name: ca-secret
+            mountPath: "/usr/lib/waggle/certca/"
+            readOnly: true
+          - name: server-secret
+            mountPath: "/usr/lib/waggle/bk-server/"
+            readOnly: true
+
+        env:
+        - name: SSHD_FLAGS
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: SSHD_FLAGS
+        - name: BEEKEEPER_REGISTER_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: BEEKEEPER_REGISTER_API
+        - name: BEEKEEPER_DB_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: BEEKEEPER_DB_API
+
+
+        ports:
+          - name: api
+            containerPort: 80
+          - name: ssh
+            containerPort: 22
+
+      restartPolicy: Always
+      volumes:
+      - name: ca-secret
+        secret:
+          secretName: beekeeper-sshd-ca-secret
+          defaultMode: 0400
+      - name: server-secret
+        secret:
+          secretName: beekeeper-sshd-server-secret
+          defaultMode: 0400

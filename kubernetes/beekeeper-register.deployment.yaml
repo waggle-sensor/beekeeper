@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: beekeeper-register
+  name: beekeeper-register
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: beekeeper-register
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        k8s-app: beekeeper-register
+    spec:
+      containers:
+      - image: waggle/beekeeper-register:latest
+        name: beekeeper-register
+        env:
+        - name: BK_SSHD_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-register-config
+              key: BK_SSHD_SERVER
+        - name: BEEKEEPER_DB_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-register-config
+              key: BEEKEEPER_DB_API
+
+
+        ports:
+          - name: api
+            containerPort: 80
+
+      restartPolicy: Always

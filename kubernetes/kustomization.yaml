@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+
+  ### beekeeper API
+  - beekeeper-api.configmap.yaml
+  - beekeeper-api.deployment.yaml
+  #- beekeeper-api.secret.yaml this is generated earlier
+  - beekeeper-api.service.yaml
+
+  ### beekeeper register
+  - beekeeper-register.deployment.yaml
+  - beekeeper-register.configmap.yaml
+  - beekeeper-register.service.yaml
+
+  ### beekeeper sshd
+  - beekeeper-sshd.deployment.yaml
+  - beekeeper-sshd.configmap.yaml
+  - beekeeper-sshd.service.yaml
+

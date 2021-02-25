@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beekeeper-api-config
+data:
+  MYSQL_HOST: mysql
+  MYSQL_DATABASE: Beekeeper
+  MYSQL_USER: beekeeper

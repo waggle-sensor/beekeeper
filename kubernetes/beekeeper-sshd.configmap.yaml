@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beekeeper-sshd-config
+data:
+  BEEKEEPER_REGISTER_API: "http://beekeeper-register:80"
+  BEEKEEPER_DB_API: "http://beekeeper-api:5000"
+  SSHD_FLAGS: ""    # e.g. "-ddd"
