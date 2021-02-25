@@ -1,5 +1,6 @@
 
 
+CREATE DATABASE IF NOT EXISTS Beekeeper;
 
 /* log of update operations */
 CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
@@ -52,7 +53,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.sensor_instances (
     `connected_to_id`       VARCHAR(64), /* id of above device, switch or nodeid if unknown */
     `sensor_id`             VARCHAR(64), /* reference sensor from table */
     `hardware_id`           VARCHAR(64), /* unique identifer, manufacturer, model etc goes in hardware table*/
-    `firmware_version`      VARCHAR(64), 
+    `firmware_version`      VARCHAR(64),
     `metadata`              TEXT /* anything else? something like this ? https://github.com/waggle-sensor/virtual-waggle/blob/main/data-config.json */
 );
 

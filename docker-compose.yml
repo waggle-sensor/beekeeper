@@ -32,9 +32,11 @@ services:
     image: waggle/beekeeper-api
     build: bk-api
     restart: always
+    depends_on:
+      - db
     env_file: mysql.env
-    volumes:
-      - ${PWD}/bk-api:/usr/src/app
+    #volumes:
+    #  - ${PWD}/bk-api:/usr/src/app
     ports:
       - "5000:5000"  # for testing purposes
     #environment:
