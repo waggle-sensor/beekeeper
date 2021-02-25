@@ -9,6 +9,8 @@
 
 /bk-register/temp/
 
+/bk-sshd/admin.pem
+
 .vscode/
 
 .coverage
