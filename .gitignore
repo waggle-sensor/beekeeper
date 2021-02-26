@@ -11,6 +11,8 @@
 
 /bk-sshd/admin.pem
 
+/kubernetes/overlay*
+
 .vscode/
 
 .coverage
