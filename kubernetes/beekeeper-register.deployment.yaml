@@ -19,12 +19,16 @@ spec:
       containers:
       - image: waggle/beekeeper-register:latest
         name: beekeeper-register
+        volumeMounts:
+          - name: ca-secret
+            mountPath: "/usr/lib/waggle/certca/"
+            readOnly: true
         env:
-        - name: BK_SSHD_SERVER
+        - name: BEEKEEPER_SSHD_API
           valueFrom:
             configMapKeyRef:
               name: beekeeper-register-config
-              key: BK_SSHD_SERVER
+              key: BEEKEEPER_SSHD_API
         - name: BEEKEEPER_DB_API
           valueFrom:
             configMapKeyRef:
@@ -35,5 +39,9 @@ spec:
         ports:
           - name: api
             containerPort: 80
-
+      volumes:
+      - name: ca-secret
+        secret:
+          secretName: beekeeper-sshd-ca-secret
+          defaultMode: 0400
       restartPolicy: Always

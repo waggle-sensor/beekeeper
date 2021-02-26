@@ -33,7 +33,7 @@ logger.addHandler(handler)
 
 BASE_KEY_DIR = "/usr/lib/waggle"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/sage_beekeeper_ca")
-BK_SSHD_SERVER = os.getenv( "BK_SSHD_SERVER", "http://bk-sshd")
+BEEKEEPER_SSHD_API = os.getenv( "BEEKEEPER_SSHD_API", "http://bk-sshd")
 BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
 
 
@@ -192,7 +192,7 @@ def register():
         }
 
         # request for EP user be added
-        url = os.path.join(BK_SSHD_SERVER, "adduser")
+        url = os.path.join(BEEKEEPER_SSHD_API, "adduser")
         post_results = requests.post(url, data=data)
         if not post_results.ok:
             raise Exception(

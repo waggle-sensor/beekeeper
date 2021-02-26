@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: beekeeper-register-config
 data:
-  BK_SSHD_SERVER: "http://beekeeper-sshd"  # This is the "user-creation" API of the beekeeper sshd container, on port 80
-  BEEKEEPER_DB_API: "http://beekeeper-api"
+  BEEKEEPER_SSHD_API: "http://beekeeper-sshd-api:80"  # This is the "user-creation" API of the beekeeper sshd container, on port 80
+  BEEKEEPER_DB_API: "http://beekeeper-api:5000"

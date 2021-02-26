@@ -1,17 +1,25 @@
 
 
+# Beekeeper kubernetes resources
 
-# install helm, e.g:
-```bash
-wget https://get.helm.sh/helm-v3.5.2-linux-amd64.tar.gz
-tar xvfz ./helm-v3.5.2-linux-amd64.tar.gz
-cp linux-amd64/helm /usr/local/bin/
-```
+For production use, please use a kustomize overlay directory, that contains your secrets and other modifications needed.
 
 
 # install mysql ( if not already available )
 
 doc: https://artifacthub.io/packages/helm/bitnami/mysql
+
+
+install helm, see https://helm.sh/docs/intro/install/
+```bash
+#linux
+wget https://get.helm.sh/helm-v3.5.2-linux-amd64.tar.gz
+tar xvfz ./helm-v3.5.2-linux-amd64.tar.gz
+cp linux-amd64/helm /usr/local/bin/
+#osx
+brew install helm
+```
+
 
 ```bash
 helm repo list
@@ -50,19 +58,33 @@ echo Password : $(kubectl get secret --namespace default mysql -o jsonpath="{.da
 
 
 # mysql: load schema, create user/password in mysql + create secret
-```bash
 
-echo Password : $(kubectl get secret --namespace default mysql -o jsonpath="{.data.mysql-root-password}" | base64 --decode)
-
-kubectl exec -t mysql-0 -- mysql -u root -p<PASSWORD> < ../schema.sql
-
-kubectl exec -ti mysql-0 -- mysql -u root -p<PASSWORD>
-
-CREATE USER 'beekeeper'@'%' identified by 'test';
-GRANT ALL PRIVILEGES ON Beekeeper.* TO 'beekeeper'@'%';
-
+For production please update your overlay beekeeper-api.secret.yaml
+```
+kubectl apply -f overlay/beekeeper-api.secret.yaml
+or
+kubectl apply -f beekeeper-api.secret.yaml
 ```
 
+
+load schema
+```bash
+MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace default mysql -o jsonpath="{.data.mysql-root-password}" | base64 --decode)
+echo "MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}"
+
+kubectl exec -t mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} < ../schema.sql
+```
+
+Create MySQL user
+```bash
+
+MYSQL_PASSWORD=$(kubectl get secret beekeeper-api-secret -o jsonpath="{.data.MYSQL_PASSWORD}" | base64 --decode)
+echo "MYSQL_PASSWORD: ${MYSQL_PASSWORD}"
+
+kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'beekeeper'@'%' identified by '${MYSQL_PASSWORD}';"
+kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "GRANT ALL PRIVILEGES ON Beekeeper.* TO 'beekeeper'@'%';"
+
+```
 
 
 
