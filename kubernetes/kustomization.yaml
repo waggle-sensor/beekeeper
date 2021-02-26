@@ -6,7 +6,7 @@ resources:
   ### beekeeper API
   - beekeeper-api.configmap.yaml
   - beekeeper-api.deployment.yaml
-  #- beekeeper-api.secret.yaml this is generated earlier
+  - beekeeper-api.secret.yaml
   - beekeeper-api.service.yaml
 
   ### beekeeper register
