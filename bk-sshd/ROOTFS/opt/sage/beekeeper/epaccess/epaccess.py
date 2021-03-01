@@ -111,8 +111,7 @@ def setup_app():
 
 
         user = f'node-{node_id}'
-        node_dir = os.path.join(USER_HOME_DIR, user)
-        #if not os.path.isdir(node_dir):
+
         _add_user(user)
 
     return
