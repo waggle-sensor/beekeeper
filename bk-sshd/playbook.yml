@@ -1,0 +1,13 @@
+
+
+- name: waggle-node
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: uname
+      command: uname -a
+      register: uname
+
+    - name: show uname
+      debug: msg="{{ uname.stdout }}"

@@ -29,10 +29,10 @@ set -e
 set -x
 
 mkdir -p /sage_temporary
-cp /usr/lib/sage/registration_keys/${REG_PUB_KEY} /sage_temporary/
+cp /usr/lib/waggle/registration_keys/${REG_PUB_KEY} /sage_temporary/
 
 
-ssh-keygen -I sage_registration -s /usr/lib/sage/certca/sage_beekeeper_ca -n sage_registration ${VALID} -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh /sage_temporary/${REG_PUB_KEY}
+ssh-keygen -I sage_registration -s /usr/lib/waggle/certca/sage_beekeeper_ca -n sage_registration ${VALID} -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh /sage_temporary/${REG_PUB_KEY}
 
 # creates certificate for key
 # ssh-keygen -I certificate_identity -s ca_key [-hU] [-D pkcs11_provider]

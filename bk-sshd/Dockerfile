@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     openssh-server \
     perl \
     python3-flask \
+    gunicorn \
     socat \
     supervisor
 RUN mkdir -p /var/run/sshd /var/log/supervisor
@@ -29,6 +30,7 @@ RUN useradd -mr sage_registration
 RUN echo 'sage_registration:3WSoOOg3JksknNe$Aizd4oG*7xn*!Fvo' | chpasswd
 
 RUN cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig
+# prohibit-password
 RUN sed -i -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     -e 's/^.\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' \
     -e 's/^.\?PasswordAuthentication.*/PasswordAuthentication no/' \
@@ -37,15 +39,17 @@ RUN sed -i -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     /etc/ssh/sshd_config
 
 
-RUN echo "HostKey /usr/lib/sage/bk-server/id_rsa_sage_beekeeper" >> /etc/ssh/sshd_config
-RUN echo "HostCertificate /usr/lib/sage/bk-server/id_rsa_sage_beekeeper-cert.pub" >> /etc/ssh/sshd_config
-RUN echo "TrustedUserCAKeys /usr/lib/sage/certca/sage_beekeeper_ca.pub" >> /etc/ssh/sshd_config
+RUN echo "HostKey /usr/lib/waggle/bk-server/id_rsa_sage_beekeeper" >> /etc/ssh/sshd_config
+RUN echo "HostCertificate /usr/lib/waggle/bk-server/id_rsa_sage_beekeeper-cert.pub" >> /etc/ssh/sshd_config
+RUN echo "TrustedUserCAKeys /usr/lib/waggle/certca/sage_beekeeper_ca.pub" >> /etc/ssh/sshd_config
 RUN echo "StreamLocalBindUnlink yes" >> /etc/ssh/sshd_config
 RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
 
 # copy over file system modifications
 COPY ROOTFS/ /
+COPY /entrypoint.sh /
 
 EXPOSE 22
-CMD ["/usr/bin/supervisord"]
+#CMD ["/usr/bin/supervisord"]
+CMD ["/entrypoint.sh"]
 #CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

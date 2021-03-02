@@ -24,13 +24,13 @@ fi
 set -e
 
 
-if [ "${1}_" == "new_" ] ; then    
+if [ "${1}_" == "new_" ] ; then
 
     set -x
     pushd bk-config
     docker build -t sagecontinuum/bk-config .
     popd
-    docker run --rm --name bk-config -v ${SECRET_VOLUME}:/usr/lib/sage/ sagecontinuum/bk-config init-keys.sh
+    docker run --rm --name bk-config -v ${SECRET_VOLUME}:/usr/lib/waggle/ sagecontinuum/bk-config init-keys.sh
 
     set +x
     exit 0
@@ -38,21 +38,24 @@ fi
 
 if [ "${1}_" == "test_" ] ; then
     set -x
-    
+
     docker volume create  ${SECRET_VOLUME}
     pushd bk-config
     docker build -t sagecontinuum/bk-config .
     popd
-    docker create --name beekeeper-temporary -v ${SECRET_VOLUME}:/usr/lib/sage/ sagecontinuum/bk-config
+    docker create --name beekeeper-temporary -v ${SECRET_VOLUME}:/usr/lib/waggle/ sagecontinuum/bk-config
 
     sleep 1
     set +x
-    for folder in  bk-server certca registration_keys ; do  
+    for folder in  bk-server certca registration_keys ; do
         set -x
-        docker cp test-keys/${folder} beekeeper-temporary:/usr/lib/sage/
+        docker cp test-keys/${folder} beekeeper-temporary:/usr/lib/waggle/
         set +x
     done
+
     set -x
+    docker cp test-keys/test-nodes.txt beekeeper-temporary:/usr/lib/waggle/
+
 
 
     docker rm beekeeper-temporary
@@ -63,4 +66,4 @@ fi
 
 
 echo "Error: Argument ${1} not supported"
-exit 1 
+exit 1

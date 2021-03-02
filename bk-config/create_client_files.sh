@@ -20,6 +20,6 @@ fi
 
 set -x
 docker build -t sagecontinuum/bk-config .
-docker run -i --rm --name bk-config -v `pwd`:/outputs/ -v beekeeper-config_bk-secrets:/usr/lib/sage/:ro sagecontinuum/bk-config create_client_files.sh $@
+docker run -i --rm --name bk-config -v `pwd`:/outputs/ -v beekeeper-config_bk-secrets:/usr/lib/waggle/:ro sagecontinuum/bk-config create_client_files.sh $@
 
 

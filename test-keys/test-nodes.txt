@@ -1,0 +1,2 @@
+# this file is only used for test keys and indicates which nodes have to be registered on start
+0000000000000001

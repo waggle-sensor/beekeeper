@@ -1,5 +1,5 @@
 
-This container 
+This container
 
 
 ```bash
@@ -20,7 +20,9 @@ cd ..
 Afterwards you can start beekeeper.
 
 
-# create client files (e.g. for a node) 
+# create client files (e.g. for a node)
+
+
 
 ```bash
 ./create_client_files.sh  HOST PORT MINUTES

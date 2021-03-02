@@ -11,12 +11,12 @@ docker exec -it beekeeper_bk-sshd_1 /bin/bash
 
 ```bash
 cd /tmp
-cp /usr/lib/sage/registration_keys/id_rsa_sage_registration.pub .
-cp /usr/lib/sage/registration_keys/id_rsa_sage_registration .
+cp /usr/lib/waggle/registration_keys/id_rsa_sage_registration.pub .
+cp /usr/lib/waggle/registration_keys/id_rsa_sage_registration .
 
 chmod 600 id_rsa_sage_registration
 
-ssh-keygen -I sage_registration -s /usr/lib/sage/certca/sage_beekeeper_ca -n sage_registration -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh ./id_rsa_sage_registration.pub
+ssh-keygen -I sage_registration -s /usr/lib/waggle/certca/sage_beekeeper_ca -n sage_registration -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh ./id_rsa_sage_registration.pub
 ```
 
 
