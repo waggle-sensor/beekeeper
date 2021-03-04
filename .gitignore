@@ -5,13 +5,13 @@
 /bk-config/register.pem
 /bk-config/register.pem-cert.pub
 /bk-config/register.pub
-/bk-config/sage_beekeeper_ca.pub
+/bk-config/beekeeper_ca_key.pub
 
 /bk-register/temp/
 
 /bk-sshd/admin.pem
 
-/kubernetes/overlay*
+
 
 .vscode/
 
