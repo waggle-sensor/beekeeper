@@ -29,7 +29,7 @@ services:
         # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
-      CREATE_REG_KEYS: ${CREATE_REG_KEYS}
+      USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
       - "bk-secrets:/usr/lib/waggle/:rw"

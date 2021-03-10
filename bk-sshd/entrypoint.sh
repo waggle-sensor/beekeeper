@@ -20,8 +20,9 @@ fi
 set -e
 
 # create keys
+echo "USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}"
 
-if [ "${DOCKER_COMPOSE}_" == "1_" ] ; then
+if [ "${USE_CONFIG_VOLUME}_" == "1_" ] ; then
 
     if [ ! -e /usr/lib/waggle/admin/admin.pem  ] ; then
         set -x
@@ -32,6 +33,7 @@ if [ "${DOCKER_COMPOSE}_" == "1_" ] ; then
 
     if [ ! -e /root/.ssh/authorized_keys ] ; then
         set -x
+        mkdir -p /root/.ssh/
         cp /usr/lib/waggle/admin/admin.pem.pub /root/.ssh/authorized_keys
         chmod 644 /root/.ssh/authorized_keys
         set +x
@@ -103,8 +105,8 @@ else
     echo "beekeeper server key-pair and cert already exist"
 fi
 
-echo "DOCKER_COMPOSE: ${DOCKER_COMPOSE}"
-if [ "${DOCKER_COMPOSE}_" == "1_" ] ; then
+
+if [ "${USE_CONFIG_VOLUME}_" == "1_" ] ; then
     # this happens only in docker-compose enviornment
     echo "creating registration key"
     if [ ! -e /usr/lib/waggle/registration_keys/registration ] ; then
