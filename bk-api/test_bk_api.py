@@ -1,4 +1,4 @@
-import bk_nodes
+import bk_api
 import datetime
 import tempfile
 import pytest
@@ -10,7 +10,7 @@ import json
 # from https://flask.palletsprojects.com/en/1.1.x/testing/
 @pytest.fixture
 def client():
-    app = bk_nodes.app
+    app = bk_api.app
     db_fd, app.config['DATABASE'] = tempfile.mkstemp()
     app.config['TESTING'] = True
 
@@ -49,7 +49,7 @@ def get_test_data():
 
 # TODO test full replay without timestamp
 def test_log_insert(client):
-    bee_db = bk_nodes.BeekeeperDB()
+    bee_db = bk_api.BeekeeperDB()
     bee_db.truncate_table("nodes_log")
     bee_db.truncate_table("nodes_history")
 
@@ -89,7 +89,7 @@ def test_log_insert(client):
 
 
 def test_list_recent_state(client):
-    bee_db = bk_nodes.BeekeeperDB()
+    bee_db = bk_api.BeekeeperDB()
     bee_db.truncate_table("nodes_log")
     bee_db.truncate_table("nodes_history")
 

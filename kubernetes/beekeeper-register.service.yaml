@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: beekeeper-register
+  labels:
+    app: beekeeper-register
+spec:
+  selector:
+    k8s-app: beekeeper-register
+  type: ClusterIP
+  ports:
+  - name: api
+    port: 80
+    protocol: TCP
+    targetPort: 80
