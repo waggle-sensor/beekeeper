@@ -20,7 +20,7 @@ cd /outputs
 
 OUTPUT_FILES="known_hosts register.pem register.pub register.pem-cert.pub"
 
-# sage_beekeeper_ca.pub should not be needed, key is alreadu in known_hosts
+# beekeeper_ca_key.pub should not be needed, key is alreadu in known_hosts
 
 for file in ${OUTPUT_FILES} ; do
   if [ -e ${file} ] ; then

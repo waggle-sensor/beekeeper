@@ -22,14 +22,27 @@ spec:
         volumeMounts:
           - name: ca-secret
             mountPath: "/usr/lib/waggle/certca/"
+            #mountPath: "/usr/lib/waggle/certca/"
             readOnly: true
           - name: server-secret
             mountPath: "/usr/lib/waggle/bk-server/"
+            #mountPath: "/usr/lib/waggle/bk-server/"
             readOnly: true
-          - name: config
+
+          - name: public-registration-keys
+            mountPath: "/usr/lib/waggle/registration_keys/"
+            readOnly: true
+
+          - name: sshd-config
             mountPath: "/config"
             readOnly: true
         env:
+        - name: KEY_GEN_ARGS
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_ARGS
+
         - name: SSHD_FLAGS
           valueFrom:
             configMapKeyRef:
@@ -59,10 +72,18 @@ spec:
         secret:
           secretName: beekeeper-sshd-ca-secret
           defaultMode: 0400
+          optional: true  # this container creates ssh files if missing
       - name: server-secret
         secret:
           secretName: beekeeper-sshd-server-secret
           defaultMode: 0400
-      - name: config
+          optional: true # this container creates ssh files if missing
+      - name: public-registration-keys
+        secret:
+          secretName: beekeeper-sshd-public-registration-keys
+      - name: sshd-config
         configMap:
           name: beekeeper-sshd-config
+
+
+

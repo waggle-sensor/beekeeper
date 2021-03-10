@@ -33,10 +33,12 @@ class sshkeygen:
     results = {}
     _key_file = None
 
+
+
     def __init__(self):
         self.base_dir = tempfile.TemporaryDirectory()
 
-    def create_key_pair(self, file, type="rsa", bits="4096"):
+    def create_key_pair(self, file, key_gen_args):
         """Create a ssh key-pair (`file` and `file`.pub)
 
         Arguments:
@@ -49,15 +51,13 @@ class sshkeygen:
         """
         priv_file = os.path.join(self.base_dir.name, file)
 
-        cmd = ["ssh-keygen", "-f", priv_file, "-t", type, "-b", bits, "-N", ""]
+        cmd = ["ssh-keygen", "-f", priv_file, "-N", "" ] + key_gen_args.split()
         logger.debug("Creating key-pair: {}".format(" ".join(cmd)))
         result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
         if result.returncode != 0:
             logger.error(
-                "Error: Unable to create key-pair [{}][type: {}][bits: {}]".format(
-                    file, type, bits
-                )
+                f"Error: Unable to create key-pair [{file}][key_gen_args: {key_gen_args}]"
             )
             # raise exception
             result.check_returncode()
@@ -91,7 +91,7 @@ class sshkeygen:
             name,
             "-s",
             ca_path,
-            "-n", # one or more principals (user or host names) 
+            "-n", # one or more principals (user or host names)
             user,
             "-O",
             "no-agent-forwarding",

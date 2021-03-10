@@ -6,7 +6,7 @@ FROM python:3.9-alpine
 WORKDIR /usr/src/app
 
 # required for python library mysqlclient
-RUN apk add  mariadb-connector-c-dev gcc musl-dev
+RUN apk add  mariadb-connector-c-dev gcc musl-dev curl
 
 # required for wsgi
 RUN apk add linux-headers

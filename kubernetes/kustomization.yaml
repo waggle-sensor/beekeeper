@@ -3,8 +3,11 @@ kind: Kustomization
 
 resources:
 
+  # beekeeper global config
+  - beekeeper.configmap.yaml
+
   ### beekeeper API
-  - beekeeper-api.configmap.yaml
+  #- beekeeper-api.configmap.yaml # This ConfigMaps has to be created after the first start of sshd
   - beekeeper-api.deployment.yaml
   - beekeeper-api.secret.yaml
   - beekeeper-api.service.yaml
@@ -18,4 +21,5 @@ resources:
   - beekeeper-sshd.deployment.yaml
   - beekeeper-sshd.configmap.yaml
   - beekeeper-sshd.service.yaml
+  - beekeeper-sshd-pubreg.secret.yaml
 

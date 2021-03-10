@@ -10,6 +10,9 @@ services:
     init: true
     ports:
       - "127.0.0.1:24181:80"
+    environment:
+      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
+      # see .env
     volumes:
       - "bk-secrets:/usr/lib/waggle/:ro"
 
@@ -23,10 +26,13 @@ services:
       - "127.0.0.1:20022:22"
       - "127.0.0.1:24182:80"
     environment:
-      SSHD_FLAGS: "" # "-ddd"
+        # e.g. SSHD_FLAGS="-ddd"
+      SSHD_FLAGS: ""
+      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
+      CREATE_REG_KEYS: ${CREATE_REG_KEYS}
+      # see .env
     volumes:
-      #- "bk-homedirs:/home_dirs"
-      - "bk-secrets:/usr/lib/waggle/:ro"
+      - "bk-secrets:/usr/lib/waggle/:rw"
 
   bk-api:
     image: waggle/beekeeper-api
@@ -54,6 +60,6 @@ services:
 volumes:
   #bk-homedirs:
   bk-secrets:
-    external:
-      name: beekeeper-config_bk-secrets
+  #  external:
+  #    name: beekeeper-config_bk-secrets
 
