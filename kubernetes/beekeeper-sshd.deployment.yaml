@@ -36,6 +36,10 @@ spec:
           - name: sshd-config
             mountPath: "/config"
             readOnly: true
+          - name: authorized-keys
+            mountPath: /root/.ssh/authorized_keys
+            subPath: admin.pem.pub
+            readOnly: true
         env:
         - name: KEY_GEN_ARGS
           valueFrom:
@@ -84,6 +88,11 @@ spec:
       - name: sshd-config
         configMap:
           name: beekeeper-sshd-config
+      - name: authorized-keys
+        configMap:
+          defaultMode: 0400
+          name: beekeeper-sshd-authorized-keys-config
+          optional: true
 
 
 

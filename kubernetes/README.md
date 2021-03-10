@@ -147,11 +147,17 @@ kubectl rollout restart deployment beekeeper-sshd
 In a private config repository:
 
 ```bash
-cd ../bk-sshd/
+cd overlay
 kubectl cp $(kubectl get pods -l k8s-app=beekeeper-sshd -o jsonpath="{.items[0].metadata.name}"):/root/keys/admin.pem ./admin.pem
-chmod 600 ./admin.pem
+kubectl cp $(kubectl get pods -l k8s-app=beekeeper-sshd -o jsonpath="{.items[0].metadata.name}"):/root/keys/admin.pem.pub ./admin.pem.pub
+
+
+
+
 
 # check port number: kubectl get services
+cd ../bk-sshd/
+chmod 600 ./admin.pem
 ssh -i ./admin.pem -o "IdentitiesOnly=yes" -p 30036 root@localhost
 ```
 

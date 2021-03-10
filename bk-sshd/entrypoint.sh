@@ -21,22 +21,35 @@ set -e
 
 # create keys
 
-if [ ! -e /root/.ssh/authorized_keys ] ; then
+if [ "${DOCKER_COMPOSE}_" == "1_" ] ; then
 
+    if [ ! -e /usr/lib/waggle/admin/admin.pem  ] ; then
+        set -x
+        mkdir -p /usr/lib/waggle/admin
+        ssh-keygen -f /usr/lib/waggle/admin/admin.pem ${KEY_GEN_ARGS} -N ''
+        set +x
+    fi
 
-    set -x
+    if [ ! -e /root/.ssh/authorized_keys ] ; then
+        set -x
+        cp /usr/lib/waggle/admin/admin.pem.pub /root/.ssh/authorized_keys
+        chmod 644 /root/.ssh/authorized_keys
+        set +x
+    fi
 
+else
+    # kubernetes
 
-    mkdir -p /root/keys/
-    ssh-keygen -f /root/keys/admin.pem ${KEY_GEN_ARGS} -N ''
-
-    mkdir -p /root/.ssh/
-    cp /root/keys/admin.pem.pub /root/.ssh/authorized_keys
-    chmod 644 /root/.ssh/authorized_keys
-
-    set +x
+    if [ ! -s /root/.ssh/authorized_keys ] ; then
+        set -x
+        mkdir -p /root/keys/
+        ssh-keygen -f /root/keys/admin.pem ${KEY_GEN_ARGS} -N ''
+        set +x
+    fi
 
 fi
+
+
 
 
 
@@ -48,7 +61,7 @@ if [ -e /usr/lib/waggle/certca/beekeeper_ca_key ] ; then
     echo "CA already exists.."
 else
 
-    if [ [ -e "/usr/lib/waggle/certca" ] && [ ! -w "/usr/lib/waggle/certca" ] ]; then
+    if [ -e "/usr/lib/waggle/certca" ] && [ ! -w "/usr/lib/waggle/certca" ] ; then
         # in case of kubernetes (optional secret is not mounted, but volume is not writeable)
         CERT_CA_TARGET_DIR="/new_config/certca"
         INFINITE_WAIT=1
@@ -66,8 +79,9 @@ fi
 # beekeeper server key-pair and cert
 
 if [ ! -e /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pub ] ; then
+    echo "creating beekeeper server key-pair and certificate... "
 
-    if [ [ -e "/usr/lib/waggle/bk-server" ] &&  [ ! -w "/usr/lib/waggle/bk-server" ] ]; then
+    if [ -e "/usr/lib/waggle/bk-server" ] &&  [ ! -w "/usr/lib/waggle/bk-server" ] ; then
         # in case of kubernetes (optional secret is not mounted, but volume is not writeable)
         CERT_SERVER_TARGET_DIR="/new_config/bk-server"
         INFINITE_WAIT=1
@@ -89,9 +103,10 @@ else
     echo "beekeeper server key-pair and cert already exist"
 fi
 
-echo "CREATE_REG_KEYS: ${CREATE_REG_KEYS}"
-if [ "${CREATE_REG_KEYS}_" == "1_" ] ; then
-
+echo "DOCKER_COMPOSE: ${DOCKER_COMPOSE}"
+if [ "${DOCKER_COMPOSE}_" == "1_" ] ; then
+    # this happens only in docker-compose enviornment
+    echo "creating registration key"
     if [ ! -e /usr/lib/waggle/registration_keys/registration ] ; then
         set -x
         create_registration_keypair.sh
