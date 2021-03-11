@@ -40,10 +40,22 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
 );
 
 
+CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
+    `id`                    VARCHAR(64),
+    `ssh_key_private`       TEXT,
+    `ssh_key_public`        TEXT,
+    PRIMARY KEY(`id`)
+);
+
+
+
+
+
+
 
 CREATE TABLE IF NOT EXISTS Beekeeper.beehives (
     `id`                  VARCHAR(64),
-    `url`                 VARCHAR(256),
+
     PRIMARY KEY(`id`)
 );
 
