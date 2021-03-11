@@ -11,6 +11,7 @@ services:
     ports:
       - "127.0.0.1:24181:80"
     environment:
+      KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
       # see .env
     volumes:
@@ -28,6 +29,7 @@ services:
     environment:
         # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
+      KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
@@ -41,8 +43,8 @@ services:
     depends_on:
       - db
     env_file: mysql.env
-    #volumes:
-    #  - ${PWD}/bk-api:/usr/src/app
+    volumes:
+      - ${PWD}/bk-api:/usr/src/app
     ports:
       - "5000:5000"  # for testing purposes
     #environment:

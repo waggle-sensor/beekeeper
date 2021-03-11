@@ -3,4 +3,5 @@ kind: ConfigMap
 metadata:
   name: beekeeper-config
 data:
-  KEY_GEN_ARGS: "-t Ed25519"   # or "-t rsa -b 4096"
+  KEY_GEN_TYPE: "Ed25519" # or rsa
+  KEY_GEN_ARGS: ""   # e.g. "-b 4096" for type rsa

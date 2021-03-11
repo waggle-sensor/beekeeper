@@ -12,8 +12,8 @@
 
 
 
-if [ -z "${KEY_GEN_ARGS}" ] ; then
-    echo "Env variable KEY_GEN_ARGS not defined"
+if [ -z "${KEY_GEN_TYPE}" ] ; then
+    echo "Env variable KEY_GEN_TYPE not defined"
     exit 1
 fi
 
@@ -27,7 +27,7 @@ if [ "${USE_CONFIG_VOLUME}_" == "1_" ] ; then
     if [ ! -e /usr/lib/waggle/admin/admin.pem  ] ; then
         set -x
         mkdir -p /usr/lib/waggle/admin
-        ssh-keygen -f /usr/lib/waggle/admin/admin.pem ${KEY_GEN_ARGS} -N ''
+        ssh-keygen -f /usr/lib/waggle/admin/admin.pem -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''
         set +x
     fi
 
@@ -45,7 +45,7 @@ else
     if [ ! -s /root/.ssh/authorized_keys ] ; then
         set -x
         mkdir -p /root/keys/
-        ssh-keygen -f /root/keys/admin.pem ${KEY_GEN_ARGS} -N ''
+        ssh-keygen -f /root/keys/admin.pem -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''
         set +x
     fi
 
@@ -74,7 +74,7 @@ else
     set -x
     mkdir -p ${CERT_CA_TARGET_DIR}
 
-    ssh-keygen -f ${CERT_CA_TARGET_DIR}/beekeeper_ca_key ${KEY_GEN_ARGS} -N ''
+    ssh-keygen -f ${CERT_CA_TARGET_DIR}/beekeeper_ca_key -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''
     set +x
 fi
 
@@ -96,7 +96,7 @@ if [ ! -e /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pub ] ; then
 
 
     # create key pair
-    ssh-keygen -f ${CERT_SERVER_TARGET_DIR}/beekeeper_server_key ${KEY_GEN_ARGS} -N ''
+    ssh-keygen -f ${CERT_SERVER_TARGET_DIR}/beekeeper_server_key -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''
 
     # sign key (creates beekeeper_server_key-cert.pub)
     ssh-keygen -I beekeeper_server -s ${CERT_CA_TARGET_DIR}/beekeeper_ca_key -h ${CERT_SERVER_TARGET_DIR}/beekeeper_server_key.pub

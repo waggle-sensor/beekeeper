@@ -31,13 +31,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
+
+for k, v in sorted(os.environ.items()):
+    print(k+':', v)
+print('\n')
+
 BASE_KEY_DIR = "/usr/lib/waggle"
 CA_FILE = os.path.join(BASE_KEY_DIR, "certca/beekeeper_ca_key")
 BEEKEEPER_SSHD_API = os.getenv( "BEEKEEPER_SSHD_API", "http://bk-sshd")
 BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
-KEY_GEN_ARGS = os.getenv('KEY_GEN_ARGS', '')
-if not KEY_GEN_ARGS:
-    sys.exit("KEY_GEN_ARGS not defined")
+KEY_GEN_TYPE = os.getenv("KEY_GEN_TYPE", "")
+KEY_GEN_ARGS = os.getenv("KEY_GEN_ARGS", "")
+if not KEY_GEN_TYPE:
+    sys.exit("KEY_GEN_TYPE not defined")
 
 def get_all_nodes():
 
@@ -183,7 +189,7 @@ def register():
         # create a user somewhere to allow the "node specific user" to connect
         logger.debug("- generate keys and certificates")
         client_keys = sshkeygen()
-        client_keys.create_key_pair(node_id, KEY_GEN_ARGS)
+        client_keys.create_key_pair(node_id, KEY_GEN_TYPE, KEY_GEN_ARGS)
         client_keys.create_certificate(node_id, CA_FILE)
 
         data = {

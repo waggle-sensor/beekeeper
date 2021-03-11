@@ -24,6 +24,11 @@ spec:
             mountPath: "/usr/lib/waggle/certca/"
             readOnly: true
         env:
+        - name: KEY_GEN_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_TYPE
         - name: KEY_GEN_ARGS
           valueFrom:
             configMapKeyRef:
