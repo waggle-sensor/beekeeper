@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: beekeeper-sshd
+  name: beekeeper-sshd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: beekeeper-sshd
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        k8s-app: beekeeper-sshd
+    spec:
+      containers:
+      - image: waggle/beekeeper-sshd:latest
+        name: beekeeper-sshd
+        volumeMounts:
+          - name: ca-secret
+            mountPath: "/usr/lib/waggle/certca/"
+            #mountPath: "/usr/lib/waggle/certca/"
+            readOnly: true
+          - name: server-secret
+            mountPath: "/usr/lib/waggle/bk-server/"
+            #mountPath: "/usr/lib/waggle/bk-server/"
+            readOnly: true
+
+          - name: public-registration-keys
+            mountPath: "/usr/lib/waggle/registration_keys/"
+            readOnly: true
+
+          - name: sshd-config
+            mountPath: "/config"
+            readOnly: true
+          - name: authorized-keys
+            mountPath: /root/.ssh/authorized_keys
+            subPath: admin.pem.pub
+            readOnly: true
+        env:
+        - name: KEY_GEN_ARGS
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_ARGS
+
+        - name: SSHD_FLAGS
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: SSHD_FLAGS
+        - name: BEEKEEPER_REGISTER_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: BEEKEEPER_REGISTER_API
+        - name: BEEKEEPER_DB_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-sshd-config
+              key: BEEKEEPER_DB_API
+
+
+        ports:
+          - name: api
+            containerPort: 80
+          - name: ssh
+            containerPort: 22
+
+      restartPolicy: Always
+      volumes:
+      - name: ca-secret
+        secret:
+          secretName: beekeeper-sshd-ca-secret
+          defaultMode: 0400
+          optional: true  # this container creates ssh files if missing
+      - name: server-secret
+        secret:
+          secretName: beekeeper-sshd-server-secret
+          defaultMode: 0400
+          optional: true # this container creates ssh files if missing
+      - name: public-registration-keys
+        secret:
+          secretName: beekeeper-sshd-public-registration-keys
+      - name: sshd-config
+        configMap:
+          name: beekeeper-sshd-config
+      - name: authorized-keys
+        configMap:
+          defaultMode: 0400
+          name: beekeeper-sshd-authorized-keys-config
+          optional: true
+
+
+

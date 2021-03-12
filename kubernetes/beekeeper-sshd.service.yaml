@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: beekeeper-sshd-api
+  labels:
+    app: beekeeper-sshd-api
+spec:
+  selector:
+    k8s-app: beekeeper-sshd
+  type: ClusterIP
+  ports:
+  - name: api
+    port: 80
+    protocol: TCP
+    targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beekeeper-sshd-ssh
+  labels:
+    app: beekeeper-sshd-ssh
+spec:
+  selector:
+    k8s-app: beekeeper-sshd
+  type: NodePort
+  ports:
+  - name: ssh
+    port: 22
+    protocol: TCP
+    targetPort: 22
+    nodePort: 30036

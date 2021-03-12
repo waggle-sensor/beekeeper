@@ -16,7 +16,7 @@ cp /usr/lib/waggle/registration_keys/id_rsa_sage_registration .
 
 chmod 600 id_rsa_sage_registration
 
-ssh-keygen -I sage_registration -s /usr/lib/waggle/certca/sage_beekeeper_ca -n sage_registration -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh ./id_rsa_sage_registration.pub
+ssh-keygen -I sage_registration -s /usr/lib/waggle/certca/beekeeper_ca_key -n sage_registration -O no-agent-forwarding -O no-port-forwarding -O no-pty -O no-user-rc -O no-x11-forwarding -O force-command=/opt/sage/beekeeper/register/register.sh ./id_rsa_sage_registration.pub
 ```
 
 

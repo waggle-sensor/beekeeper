@@ -34,7 +34,7 @@ logger.addHandler(handler)
 
 USER_HOME_DIR = "/home_dirs"
 
-BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-nodes:5000")
+BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
 BEEKEEPER_REGISTER_API = os.getenv("BEEKEEPER_REGISTER_API" ,"http://bk-register:80")
 
 

@@ -5,9 +5,14 @@ services:
     image: waggle/beekeeper-register
     build: bk-register
     restart: always
+    depends_on:
+      - bk-api
     init: true
     ports:
       - "127.0.0.1:24181:80"
+    environment:
+      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
+      # see .env
     volumes:
       - "bk-secrets:/usr/lib/waggle/:ro"
 
@@ -21,22 +26,27 @@ services:
       - "127.0.0.1:20022:22"
       - "127.0.0.1:24182:80"
     environment:
-      SSHD_FLAGS: "" # "-ddd"
+        # e.g. SSHD_FLAGS="-ddd"
+      SSHD_FLAGS: ""
+      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
+      USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
+      # see .env
     volumes:
-      #- "bk-homedirs:/home_dirs"
-      - "bk-secrets:/usr/lib/waggle/:ro"
+      - "bk-secrets:/usr/lib/waggle/:rw"
 
-  bk-nodes:
-    image: waggle/beekeeper-nodes
-    build: bk-nodes
+  bk-api:
+    image: waggle/beekeeper-api
+    build: bk-api
     restart: always
+    depends_on:
+      - db
     env_file: mysql.env
-    volumes:
-      - ${PWD}/bk-nodes:/usr/src/app
+    #volumes:
+    #  - ${PWD}/bk-api:/usr/src/app
     ports:
       - "5000:5000"  # for testing purposes
     #environment:
-    #  FLASK_APP: bk-nodes.py
+    #  FLASK_APP: bk-api.py
     #  FLASK_ENV: production
 
 
@@ -50,6 +60,6 @@ services:
 volumes:
   #bk-homedirs:
   bk-secrets:
-    external:
-      name: beekeeper-config_bk-secrets
+  #  external:
+  #    name: beekeeper-config_bk-secrets
 

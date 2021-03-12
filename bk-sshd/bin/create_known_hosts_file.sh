@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-if [ ! -e /usr/lib/waggle/bk-server/id_rsa_sage_beekeeper.pub ] ; then
+if [ ! -e /usr/lib/waggle/bk-server/beekeeper_server_key.pub ] ; then
     echo "beekeeper public key not found!"
     exit 1
 fi
@@ -21,4 +21,4 @@ fi
 
 # example prefix [host.docker.internal]:20022
 
-echo '['$1']:'$2 $(cat /usr/lib/waggle/bk-server/id_rsa_sage_beekeeper.pub)
+echo '['$1']:'$2 $(cat /usr/lib/waggle/bk-server/beekeeper_server_key.pub)
