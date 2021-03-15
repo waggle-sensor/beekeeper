@@ -130,7 +130,7 @@ class LatestState(MethodView):
 
 
 
-# TODO: add /state/ to get state of all nodes
+
 # /state/<node_id>
 class State(MethodView):
     def get(self, node_id):
@@ -151,6 +151,63 @@ class State(MethodView):
         return { "data" : node_state }
 
 
+class Credentials(MethodView):
+    def get(self, node_id):
+
+
+        try:
+
+            bee_db = BeekeeperDB()
+            results = bee_db.get_node_credentials(node_id)
+
+        except Exception as e:
+            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        if not results:
+            raise ErrorResponse(f"Not found." , status_code=HTTPStatus.NOT_FOUND )
+
+        return results
+
+    def post(self, node_id):
+
+
+
+        try:
+#request.get
+            postData = request.get_json(force=True, silent=False)
+
+        except Exception as e:
+
+            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        if not postData:
+            raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        valid_keys = {"ssh_key_private", "ssh_key_public"}
+        expected_keys  = valid_keys
+
+        for key in postData:
+            if key not in valid_keys:
+                raise ErrorResponse(f"Key {key} not supported" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        for key in expected_keys:
+            if key not in postData:
+                raise ErrorResponse(f"Key {key} missing" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+
+        try:
+
+            bee_db = BeekeeperDB()
+            results = bee_db.set_node_credentials(node_id, postData)
+
+        except Exception as e:
+            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+
+        return "success"
+
 
 
 app = Flask(__name__)
@@ -161,7 +218,7 @@ app.add_url_rule('/', view_func=Root.as_view('root'))
 app.add_url_rule('/log', view_func=Log.as_view('log'))
 app.add_url_rule('/state', view_func=LatestState.as_view('latest_state'))
 app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
-
+app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
 
 @app.errorhandler(ErrorResponse)
 def handle_invalid_usage(error):
