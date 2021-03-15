@@ -11,6 +11,7 @@ import sys
 
 
 from flask import Flask
+from flask_cors import CORS
 from flask.views import MethodView
 from flask import jsonify
 from flask.wrappers import Response
@@ -154,6 +155,7 @@ class State(MethodView):
 
 
 app = Flask(__name__)
+CORS(app)
 app.config["PROPAGATE_EXCEPTIONS"] = True
 #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
