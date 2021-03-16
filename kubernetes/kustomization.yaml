@@ -11,6 +11,7 @@ resources:
   - beekeeper-api.deployment.yaml
   - beekeeper-api.secret.yaml
   - beekeeper-api.service.yaml
+  - beekeeper-api.ingress.yaml
 
   ### beekeeper register
   - beekeeper-register.deployment.yaml

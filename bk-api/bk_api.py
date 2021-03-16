@@ -52,7 +52,6 @@ class Log(MethodView):
             postData = request.get_json(force=True, silent=False)
 
         except Exception as e:
-
             raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         if not postData:
@@ -62,10 +61,10 @@ class Log(MethodView):
         listData = None
         if isinstance( postData, dict ):
             listData = [ postData ]
-            print("Putting postData into array ", flush=True)
+            #print("Putting postData into array ", flush=True)
         else:
             listData = postData
-            print("Use postData as is ", flush=True)
+            #print("Use postData as is ", flush=True)
 
         if not isinstance( listData, list ):
             raise ErrorResponse("list expected", status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -118,7 +117,7 @@ class Log(MethodView):
 
 
 # /state
-class LatestState(MethodView):
+class ListStates(MethodView):
     def get(self):
         try:
             bee_db = BeekeeperDB()
@@ -169,6 +168,7 @@ class Credentials(MethodView):
 
         return results
 
+    # example: {"ssh_key_private":"x", "ssh_key_public":"y"}
     def post(self, node_id):
 
 
@@ -209,7 +209,18 @@ class Credentials(MethodView):
 
         return "success"
 
+    def delete(self, node_id):
 
+
+        try:
+
+            bee_db = BeekeeperDB()
+            result_count = bee_db.delete_object( "node_credentials", "id", node_id)
+
+        except Exception as e:
+            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        return {"deleted": result_count}
 
 app = Flask(__name__)
 CORS(app)
@@ -218,7 +229,7 @@ app.config["PROPAGATE_EXCEPTIONS"] = True
 
 app.add_url_rule('/', view_func=Root.as_view('root'))
 app.add_url_rule('/log', view_func=Log.as_view('log'))
-app.add_url_rule('/state', view_func=LatestState.as_view('latest_state'))
+app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
 app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
 app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
 

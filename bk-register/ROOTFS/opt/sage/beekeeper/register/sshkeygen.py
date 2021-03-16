@@ -26,17 +26,18 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 
-class sshkeygen:
+class SSHKeyGen:
     """Create ssh key-pairs and certificates"""
 
     base_dir = None
-    results = {}
+    #results = {}
     _key_file = None
 
 
 
     def __init__(self):
         self.base_dir = tempfile.TemporaryDirectory()
+
 
     def create_key_pair(self, file, key_gen_type, key_gen_args):
         """Create a ssh key-pair (`file` and `file`.pub)
@@ -63,11 +64,36 @@ class sshkeygen:
             result.check_returncode()
 
         with open(priv_file, "r") as priv_key:
-            self.results["private_key"] = priv_key.read()
-        with open("{}.pub".format(priv_file), "r") as pub_key:
-            self.results["public_key"] = pub_key.read()
+            private_key = priv_key.read()
+        with open(f"{priv_file}.pub", "r") as pub_key:
+            public_key = pub_key.read()
 
         self._key_file = priv_file
+
+        return {"private_key" : private_key, "public_key":public_key }
+
+    # writes key-pair files (in case key pair came from database)
+    def write_keys_to_files(self, node_id, priv_key, public_key):
+
+        priv_file = os.path.join(self.base_dir.name, node_id)
+
+        with open(priv_file, "w") as fp:
+            fp.write(priv_key)
+
+        self._key_file = priv_file
+
+
+        public_key_file = os.path.join(self.base_dir.name, f"{node_id}.pub")
+        with open(public_key_file, "w") as fp:
+            fp.write(public_key)
+
+        return
+
+
+
+
+
+
 
     def create_certificate(self, name, ca_path):
         """Create the certificate from the key-pair. Key-pair must be created first.
@@ -79,10 +105,13 @@ class sshkeygen:
         Returns:
             none
         """
-        priv_file = os.path.join(self.base_dir.name, name)
 
-        if not (self.results.get("private_key") and self.results.get("public_key")):
-            raise Exception("Must create key-pair first")
+        if not self._key_file:
+            raise Exception("self._key_file is empty")
+        #priv_file = os.path.join(self.base_dir.name, name)
+
+        #if not (self.results.get("private_key") and self.results.get("public_key")):
+        #    raise Exception("Must create key-pair first")
 
         user = "node-{}".format(name)
         cmd = [
@@ -114,6 +143,13 @@ class sshkeygen:
             # raise exception
             result.check_returncode()
 
-        self.results["user"] = user
+        #self.results["user"] = user
+        certificate = ""
         with open("{}-cert.pub".format(self._key_file), "r") as cert_key:
-            self.results["certificate"] = cert_key.read()
+            #self.results["certificate"] = cert_key.read()
+            certificate = cert_key.read()
+
+        return { "certificate": certificate, "user": user}
+
+
+

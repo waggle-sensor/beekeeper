@@ -45,6 +45,13 @@ def get_test_data():
 
     return {'test_time': test_time, 'data': data}
 
+def test_log_insert_fail(client):
+
+    rv = client.post('/log', data = "foobar")
+
+    result = rv.get_json()
+    assert 'error'  in result
+
 
 
 # TODO test full replay without timestamp
@@ -134,6 +141,33 @@ def test_list_recent_state(client):
 
     assert d[0]['id'] == '123'
     assert d[0]['mode'] == 'failed'
+
+def test_credentials(client):
+
+
+    rv = client.post('/credentials/dummy', data = "test")
+
+    assert rv.status_code != 200
+
+    rv = client.post('/credentials/cred-test', data = json.dumps({"ssh_key_private":"x", "ssh_key_public":"y"}))
+
+    assert rv.status_code == 200
+
+
+    rv = client.get('/credentials/cred-test')
+    result = rv.get_json()
+    assert "ssh_key_private" in result
+    assert "ssh_key_public" in result
+
+    assert result["ssh_key_private"] == "x"
+    assert result["ssh_key_public"] == "y"
+
+    # clean-up
+    rv = client.delete('/credentials/cred-test')
+    assert rv.status_code == 200
+    result = rv.get_json()
+    assert "deleted" in result
+    assert result["deleted"] == 1
 
 
 

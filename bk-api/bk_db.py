@@ -216,6 +216,33 @@ class BeekeeperDB():
 
         return result
 
+    def get_node_credentials(self, node_id):
+
+        stmt = f'SELECT ssh_key_private, ssh_key_public FROM `node_credentials` WHERE `id` = %s'
+        print(f'statement: {stmt}', flush=True)
+
+        self.cur.execute(stmt, (node_id,))
+        row = self.cur.fetchone()
+        if not row:
+            #raise Exception("Node not found")
+            return None
+
+        return {"ssh_key_private" : row[0], "ssh_key_public" : row[1]}
+
+    def set_node_credentials(self, node_id, creds):
+
+        creds["id"] = node_id
+
+        #ssh_key_private = creds["ssh_key_private"]
+        #ssh_key_public = creds["ssh_key_public"]
+
+        self.insert_object("node_credentials", creds)
+
+        return
+
+
+
+
 
     def list_latest_state(self):
         table_name = 'nodes_history'
@@ -253,6 +280,27 @@ class BeekeeperDB():
         print(f'debug_stmt: {debug_stmt}', flush=True)
         self.cur.execute(stmt, (*values, ))
         self.db.commit()
+
+        if self.cur.rowcount != 1:
+            raise Exception(f"insertion went wrong (self.cur.rowcount: {self.cur.rowcount})")
+
+        return
+
+    # simple delete based on WHERE KEY=VALUE
+    def delete_object(self, table_name, key, value):
+
+        stmt = f"DELETE FROM `{table_name}` WHERE {key} = %s ;"
+
+        debug_stmt = stmt.replace("%s", f"'{value}'", 1)
+
+        print(f'debug_stmt: {debug_stmt}', flush=True)
+        try:
+            self.cur.execute(stmt, (value,))
+            self.db.commit()
+        except Exception as e:
+            raise Exception(f"Error deleting object: {str(e)}")
+
+        return self.cur.rowcount
 
 
     def dict2mysql(self, obj):

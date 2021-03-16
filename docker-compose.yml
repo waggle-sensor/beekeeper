@@ -16,6 +16,7 @@ services:
       # see .env
     volumes:
       - "bk-secrets:/usr/lib/waggle/:ro"
+      - ${PWD}/bk-register/ROOTFS/opt/sage/beekeeper/register:/opt/sage/beekeeper/register
 
   bk-sshd:
     image: waggle/beekeeper-sshd
@@ -57,10 +58,11 @@ services:
     env_file: mysql.env
     volumes:
       - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
-      #- beekeeper-db:/var/lib/mysql
+      - beekeeper-db:/var/lib/mysql
 
 volumes:
   #bk-homedirs:
+  beekeeper-db:
   bk-secrets:
   #  external:
   #    name: beekeeper-config_bk-secrets
