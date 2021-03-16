@@ -5,7 +5,7 @@
 ### TEST REGISTRATION
 
 echo "waiting for registration service"
-while [ "$(docker exec -ti beekeeper_bk-register_1 curl localhost)_" != "Beekeeper Registration Server_" ] ; do sleep 2 ; done
+while [ "$(docker exec -i beekeeper_bk-register_1 curl localhost)_" != "Beekeeper Registration Server_" ] ; do sleep 2 ; done
 
 set -e
 set -x
