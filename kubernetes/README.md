@@ -81,8 +81,10 @@ Create MySQL user
 export MYSQL_PASSWORD=$(kubectl get secret beekeeper-api-secret -o jsonpath="{.data.MYSQL_PASSWORD}" | base64 --decode)
 echo "MYSQL_PASSWORD: ${MYSQL_PASSWORD}"
 
-kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'beekeeper'@'%' identified by '${MYSQL_PASSWORD}';"
-kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "GRANT ALL PRIVILEGES ON Beekeeper.* TO 'beekeeper'@'%';"
+kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD}
+
+CREATE USER 'beekeeper'@'%' identified by '<MYSQL_PASSWORD>';
+GRANT ALL PRIVILEGES ON Beekeeper.* TO 'beekeeper'@'%';
 
 #verify
 kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SELECT User, Host  FROM mysql.user;"
