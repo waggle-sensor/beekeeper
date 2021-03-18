@@ -55,9 +55,10 @@ CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
 
 CREATE TABLE IF NOT EXISTS Beekeeper.beehives (
     `id`                  VARCHAR(64),
-
+    `api`                 VARCHAR(256),
     PRIMARY KEY(`id`)
 );
+
 
 CREATE TABLE IF NOT EXISTS Beekeeper.sensor_instances (
     `node_id`               VARCHAR(16) NOT NULL,
