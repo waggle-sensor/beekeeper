@@ -44,7 +44,7 @@ RUN echo "HostCertificate /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pu
 RUN echo "TrustedUserCAKeys /usr/lib/waggle/certca/beekeeper_ca_key.pub" >> /etc/ssh/sshd_config
 RUN echo "StreamLocalBindUnlink yes" >> /etc/ssh/sshd_config
 RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
-RUN echo "ClientAliveInterval 15" >> /etc/ssh/sshd_config
+RUN echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
 
 # copy over file system modifications
 COPY ROOTFS/ /
