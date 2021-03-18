@@ -22,7 +22,7 @@ echo "correct node_id was returned in registration process"
 
 # verify node is in database
 set -x
-NEW_ID2=$(docker exec -i beekeeper_bk-api_1  ash -c "curl localhost:5000/state/0000000000000001" | jq -r -j .data.id)
+NEW_ID2=$(docker exec -i beekeeper_bk-api_1  bash -c "curl localhost:5000/state/0000000000000001" | jq -r -j .data.id)
 set +x
 if [ "${NEW_ID2}_" != "0000000000000001_" ] ; then
   echo "database test failed, expected \"0000000000000001\", got \"${NEW_ID2}\""
@@ -34,4 +34,4 @@ fi
 
 ### TEST BEEKEEPER API
 set -x
-docker exec beekeeper_bk-api_1 /bin/ash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 90'
+docker exec beekeeper_bk-api_1 /bin/bash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 90 --include=./*'
