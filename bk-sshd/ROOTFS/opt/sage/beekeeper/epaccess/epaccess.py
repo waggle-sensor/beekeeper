@@ -35,29 +35,12 @@ logger.addHandler(handler)
 USER_HOME_DIR = "/home_dirs"
 
 BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
-BEEKEEPER_REGISTER_API = os.getenv("BEEKEEPER_REGISTER_API" ,"http://bk-register:80")
 
 
 
 
 def setup_app():
 
-    while True:
-        # wait for bk-register (because bk-register loads some test data first into DB)
-        try:
-            bk_api_result = requests.get(f'{BEEKEEPER_REGISTER_API}', timeout=3).content
-        except Exception as e:
-            logger.warning(f"Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached, requests.get returned: {str(e)}")
-            time.sleep(2)
-            continue
-
-        result_message = bk_api_result.decode("utf-8").strip()
-        if 'Beekeeper Registration Server' != result_message:
-            logger.warning("Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached: \"{result_message}\"")
-            time.sleep(2)
-            continue
-
-        break
 
 
     while True:
@@ -70,8 +53,8 @@ def setup_app():
 
         #print(bk_api_result)
         result_message = bk_api_result.decode("utf-8").strip()   # bk_api_result.decode("utf-8").strip()
-        if 'SAGE Beekeeper' != result_message:
-            logger.warning("Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
+        if 'SAGE Beekeeper API' != result_message:
+            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
             time.sleep(2)
             continue
 

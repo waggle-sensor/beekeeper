@@ -11,16 +11,20 @@ WORKDIR /usr/src/app
 # required for python library mysqlclient
 #RUN apk add  mariadb-connector-c-dev gcc musl-dev curl
 
-ARG DEBIAN_FRONTEND noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
 
 # required for wsgi
 #RUN apk add linux-headers
-RUN apt-get update &&  apt-get install -y python3-pip gunicorn libmysqlclient-dev curl
+RUN apt-get update &&  apt-get install -y python3-pip gunicorn libmysqlclient-dev openssh-client curl psmisc
 #RUN pip3
 #RUN /usr/local/bin/python -m pip install --upgrade pip
 
-COPY  . /usr/src/app
+# copy requirements.txt explicitly first: https://stackoverflow.com/a/34399661/2069181
+COPY requirements.txt /usr/src/app/requirements.txt
 RUN pip3 install -r requirements.txt
+
+COPY  . /usr/src/app
+
 
 #CMD ./bk_api.py
 CMD gunicorn bk_api:app --bind=0.0.0.0:5000

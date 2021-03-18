@@ -50,7 +50,13 @@ class SSHKeyGen:
         Returns:
             none
         """
+
+        if not file:
+            raise Exception("file undefined")
         priv_file = os.path.join(self.base_dir.name, file)
+
+        if not key_gen_type:
+            raise Exception("key_gen_type undefined")
 
         cmd = ["ssh-keygen", "-f", priv_file, "-N", "", "-t" , key_gen_type ] + key_gen_args.split()
         logger.debug("Creating key-pair: {}".format(" ".join(cmd)))

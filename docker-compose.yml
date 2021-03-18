@@ -1,29 +1,29 @@
 version: '3.7'
 services:
 
-  bk-register:
-    image: waggle/beekeeper-register
-    build: bk-register
-    restart: always
-    depends_on:
-      - bk-api
-    init: true
-    ports:
-      - "127.0.0.1:24181:80"
-    environment:
-      KEY_GEN_TYPE: ${KEY_GEN_TYPE}
-      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
-      # see .env
-    volumes:
-      - "bk-secrets:/usr/lib/waggle/:ro"
-      - ${PWD}/bk-register/ROOTFS/opt/sage/beekeeper/register:/opt/sage/beekeeper/register
+  #bk-register:
+  #  image: waggle/beekeeper-register
+  #  build: bk-register
+  #  restart: always
+  #  depends_on:
+  #    - bk-api
+  #  init: true
+  #  ports:
+  #    - "127.0.0.1:24181:80"
+  #  environment:
+  #    KEY_GEN_TYPE: ${KEY_GEN_TYPE}
+  #    KEY_GEN_ARGS: ${KEY_GEN_ARGS}
+  #    # see .env
+  #  volumes:
+  #    - "bk-secrets:/usr/lib/waggle/:ro"
+  #    - ${PWD}/bk-register/ROOTFS/opt/sage/beekeeper/register:/opt/sage/beekeeper/register
 
   bk-sshd:
     image: waggle/beekeeper-sshd
     build: bk-sshd
     restart: always
-    depends_on:
-      - bk-register
+    #depends_on:
+    #  - bk-register
     ports:
       - "127.0.0.1:20022:22"
       - "127.0.0.1:24182:80"
@@ -43,9 +43,12 @@ services:
     restart: always
     depends_on:
       - db
-    env_file: mysql.env
+    env_file:
+      - mysql.env
+      - .env
     volumes:
-      - ${PWD}/bk-api:/usr/src/app
+      - "bk-secrets:/usr/lib/waggle/:ro"
+      - ${PWD}/bk-api:/usr/src/app     # for easier development
     ports:
       - "5000:5000"  # for testing purposes
     #environment:

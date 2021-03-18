@@ -27,6 +27,19 @@ def test_root(client):
     rv = client.get('/')
     assert b'SAGE Beekeeper' in rv.data
 
+def test_registration(client):
+    rv = client.get('/register?id=foobar')
+    assert rv.status_code == 200
+    result = rv.get_json()
+    assert 'certificate'  in result
+
+
+    rv = client.get('/credentials/foobar')
+    result = rv.get_json()
+    assert "ssh_key_private" in result
+    assert "ssh_key_public" in result
+
+
 
 def get_test_data():
     data = []

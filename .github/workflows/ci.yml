@@ -17,7 +17,7 @@ jobs:
       - name: Start docker-compose
         run: docker-compose up -d
       - name: Wait for docker-compose services
-        run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper_"  ] ; do echo waiting... ; sleep 2 ; done
+        run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper API_"  ] ; do echo waiting... ; sleep 2 ; done
       - name: Wait a bit more
         run: sleep 10
       - name: Unit tests
