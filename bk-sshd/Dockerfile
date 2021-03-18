@@ -5,6 +5,7 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
+# note: this base image should be the same as used in bk-api
 FROM ubuntu:20.04
 #FROM ubuntu:18.04
 

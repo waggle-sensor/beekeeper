@@ -2,6 +2,8 @@
 # docker build -t beekeeper/bk-api .
 # docker run -ti -p 5000:5000 -v `pwd`:/usr/src/app beekeeper/bk-api
 #FROM python:3.9-alpine
+
+# note: this base image should be the same as used in bk-sshd
 FROM ubuntu:20.04
 
 WORKDIR /usr/src/app
