@@ -27,5 +27,5 @@ COPY  . /usr/src/app
 
 
 #CMD ./bk_api.py
-CMD gunicorn bk_api:app --bind=0.0.0.0:5000
+CMD gunicorn bk_api:app --timeout=120 --bind=0.0.0.0:5000
 

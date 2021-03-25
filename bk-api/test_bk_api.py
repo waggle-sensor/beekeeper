@@ -5,7 +5,7 @@ import pytest
 import os
 
 import json
-
+import io
 
 # from https://flask.palletsprojects.com/en/1.1.x/testing/
 @pytest.fixture
@@ -28,6 +28,13 @@ def test_root(client):
     assert b'SAGE Beekeeper' in rv.data
 
 def test_registration(client):
+
+    # Do it twice to make sure the code for the cached version is included
+    rv = client.get('/register?id=foobar')
+    assert rv.status_code == 200
+    result = rv.get_json()
+    assert 'certificate'  in result
+
     rv = client.get('/register?id=foobar')
     assert rv.status_code == 200
     result = rv.get_json()
@@ -183,7 +190,36 @@ def test_credentials(client):
     assert result["deleted"] == 1
 
 
+def test_beehives(client):
 
+    rv = client.delete('/beehives/test-beehive')
+    result = rv.get_json()
+    assert "deleted" in result  # 0 or 1, either is fine here
+
+    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive"}))
+    result = rv.get_json()
+    assert "success" in result
+
+    # TODO form upload does not work here
+    #data = {"tls-key": (None, "a"), 'tls-cert': (None ,'b'), 'ssh-key': (None, 'c'), 'ssh-pub': (None, 'd'), 'ssh-cert': (None, 'e')}
+
+    data = {
+        "tls-key": (io.BytesIO(b'a'), "dummmy"),
+        'tls-cert': (io.BytesIO(b'b'), "dummmy"),
+        'ssh-key': (io.BytesIO(b'c'), "dummmy"),
+        'ssh-pub': (io.BytesIO(b'd'), "dummmy"),
+        'ssh-cert': (io.BytesIO(b'e'), "dummmy")
+    }
+    rv = client.post('/beehives/test-beehive', content_type='multipart/form-data', data=data)
+    result = rv.get_json()
+    assert "modified" in result
+
+    rv = client.get('/beehives/test-beehive')
+    result = rv.get_json()
+    assert "id" in result  # 0 or 1, either is fine here
+    assert result["id"] == "test-beehive"
+    assert result["tls-key"] == "a"
+    assert result["ssh-cert"] == "e"
 
 def test_error(client):
     rv = client.get(f'/state/foobar')

@@ -41,7 +41,7 @@ import requests
 
 from sshkeygen import SSHKeyGen
 import traceback
-
+from werkzeug.utils import secure_filename
 
 
 formatter = logging.Formatter(
@@ -91,13 +91,13 @@ if not KEY_GEN_TYPE:
 
 #     return node_list
 
-def register_node(node_id):
+def register_node(node_id, lock_tables=True):
 
     payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "registration_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
 
     #url = f'{BEEKEEPER_DB_API}/log'
     try:
-        insert_log(payload)
+        insert_log(payload, lock_tables=lock_tables)
         #bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
     except Exception as e:
         #raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
@@ -107,8 +107,8 @@ def register_node(node_id):
     return
 
 
-# wait for beekeeper API and check for test nodes that may have to be registered
-def setup_app_registration():
+# register test nodes (use only in development environment)
+def initialize_test_nodes():  # pragma: no cover   this code is not used in production
 
 
     test_nodes_file = os.path.join(BASE_KEY_DIR, "test-nodes.txt")
@@ -155,8 +155,10 @@ def setup_app_registration():
 
             # register node
 
-
-            register_node(node_id)
+            try:
+                register_node(node_id, lock_tables=False)  # Locking mysql tables at initialization does not work for some unclear reason
+            except Exception as e:
+                raise Exception(f"Node registration failed: {str(e)}")
 
             logger.debug(f"Node {node_id} registered.")
 
@@ -329,7 +331,7 @@ class Root(MethodView):
         return "SAGE Beekeeper API"
 
 
-def insert_log(postData):
+def insert_log(postData, lock_tables=True, force=False):
     listData = None
     if isinstance( postData, dict ):
         listData = [ postData ]
@@ -357,11 +359,15 @@ def insert_log(postData):
             if f not in op:
                 raise Exception(f'Field {f} missing. Got: {json.dumps(op)}')
 
+        if not force:
+            if op["field_name"] == "beehive":
+                raise Exception("Field \"beehive\" cannot be set via the /log resource")
+
 
         try:
             newLogDataEntry = {
                 "node_id": op["node_id"],
-                "table_name": "nodes_log" ,
+                "table_name": "nodes_history" ,
                 "operation": op["operation"],
                 "field_name": op["field_name"],
                 "new_value": op["field_value"],
@@ -375,9 +381,11 @@ def insert_log(postData):
         #print("success", flush=True)
 
     try:
-        bee_db.nodes_log_add(logData) #  effective_time=effective_time)
+        bee_db.nodes_log_add(logData, lock_tables=lock_tables) #  effective_time=effective_time)
     except Exception as ex:
         raise Exception(f"nodes_log_add failed: {ex}" )
+
+    return
 
 
 
@@ -445,6 +453,157 @@ class State(MethodView):
             node_state["registration_event"] = node_state["registration_event"].isoformat()
 
         return { "data" : node_state }
+
+# /node/<node_id>
+class Node(MethodView):
+    def get(self, node_id):
+        return { "error" : "nothing here, use the /state resource instead " }
+
+    # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
+    def post(self, node_id):
+        try:
+#request.get
+            postData = request.get_json(force=True, silent=False)
+
+        except Exception as e:
+
+            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+        # INSERT INTO beehives (`id`) VALUES("sage-beehive");
+        if "assign_beehive" in postData:
+
+            assign_beehive = postData["assign_beehive"]
+            bee_db = BeekeeperDB()
+            beehive_obj = bee_db.get_beehive(assign_beehive)
+            if not beehive_obj:
+                raise ErrorResponse(f"Beehive {assign_beehive} unknown" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+
+
+            return { "data" : beehive_obj }
+
+
+        return { "data" : "that's all" }
+
+class BeehivesList(MethodView):
+
+    # create new beehive
+    # example: curl localhost:5000/beehives -d '{"id": "sage-beehive"}'
+    def post(self):
+        try:
+#request.get
+            postData = request.get_json(force=True, silent=False)
+
+        except Exception as e:
+
+            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+        if not "id" in postData:
+            raise ErrorResponse(f"Field is missing" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        beehive_id = postData["id"]
+
+
+        bee_db = BeekeeperDB()
+
+        #TODO check if beehive already exists
+
+        obj = bee_db.get_beehive(beehive_id)
+        if obj:
+            raise ErrorResponse(f"Beehive {beehive_id} already exists" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        result = bee_db.create_beehive(beehive_id)
+        if result != 1:
+            raise ErrorResponse(f"Could not create beehive {beehive_id}  ({result})" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        return {"success": True}
+
+
+
+class Beehives(MethodView):
+
+    # get beehive object including all credentials
+    def get(self, beehive_id):
+
+
+        bee_db = BeekeeperDB()
+        obj = bee_db.get_beehive(beehive_id)
+        if not obj:
+            raise Exception(f"Beehive {beehive_id} not found" )
+
+        for user_visible_field in ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]:
+            col_name = user_visible_field.replace("-", "_ca_")
+            obj[user_visible_field] = obj[col_name]
+            del obj[col_name]
+
+        return obj
+
+
+    # configure beehive credentials
+    # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
+    def post(self, beehive_id):
+
+
+
+
+        expected_forms = ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]
+
+        count_updated = 0
+        data={}
+        try:
+
+            bee_db = BeekeeperDB()
+            obj = bee_db.get_beehive(beehive_id)
+            if not obj:
+                raise Exception(f"Beehive {beehive_id} not found" )
+
+
+
+            for formname in request.files:
+                if not formname in expected_forms:
+                    raise Exception(f"Formname {formname} not supported" )
+
+            # we could remove this check...
+            #for formname in expected_forms:
+            #    if not formname in request.files:
+            #        raise Exception(f"Formname {formname} missing" )
+
+
+            for formname in request.files:
+
+
+                formdata = request.files.get(formname).read().decode("utf-8")
+                if not formdata:
+                    raise Exception(f"Field {formname} empty" )
+
+                data[formname] = formdata
+                #logger.debug(f"data: {formname} {data[formname]}")
+                #filename = secure_filename(file.filename)
+                #logger.debug(f"filename: {filename}")
+
+
+            for formname in data:
+
+                col_name = formname.replace("-", "_ca_")
+
+                count_updated += bee_db.update_object_field("beehives", col_name, data[formname], "id", beehive_id)
+
+
+        except Exception as e:
+            raise ErrorResponse(f"something failed: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        return {"modified": count_updated}
+
+
+    def delete(self, beehive_id):
+
+        bee_db = BeekeeperDB()
+        result = bee_db.delete_object("beehives", "id", beehive_id )
+
+        return {"deleted": result}
 
 
 class Credentials(MethodView):
@@ -574,6 +733,11 @@ app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
 app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
 app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
 
+# administrative functionality: e.g. assign beehive
+app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
+app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
+app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
+
 app.add_url_rule('/register', view_func=Registration.as_view('registration'))
 
 @app.errorhandler(ErrorResponse)
@@ -585,17 +749,17 @@ def handle_invalid_usage(error):
 
 def setup_app(app):
 
-    #setup_app_registration()
+
 
 
    # All your initialization code
     bee_db = BeekeeperDB()
 
 
-    for table_name in ['nodes_log', 'nodes_history']:
+    for table_name in ['nodes_log', 'nodes_history', 'beehives']:
 
         stmt = f'SHOW COLUMNS FROM `{table_name}`'
-        print(f'statement: {stmt}')
+        logger.debug(f'statement: {stmt}')
         bee_db.cur.execute(stmt)
         rows = bee_db.cur.fetchall()
 
@@ -610,9 +774,11 @@ def setup_app(app):
             table_fields_index[table_name][table_fields[table_name][f]] = f
 
 
-    print(table_fields, flush=True)
-    print(table_fields_index, flush=True)
+    logger.debug(table_fields)
+    logger.debug(table_fields_index)
 
+
+    initialize_test_nodes()
 
 
 

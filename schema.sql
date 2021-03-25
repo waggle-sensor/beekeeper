@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
 CREATE TABLE IF NOT EXISTS Beekeeper.beehives (
     `id`                  VARCHAR(64),
     `api`                 VARCHAR(256),
+    `tls_ca_key`          TEXT,
+    `tls_ca_cert`         TEXT,
+    `ssh_ca_key`          TEXT,
+    `ssh_ca_pub`          TEXT,
+    `ssh_ca_cert`         TEXT,
     PRIMARY KEY(`id`)
 );
 

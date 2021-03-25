@@ -2,7 +2,7 @@
 set -e
 
 
-SECRET_VOLUME="beekeeper-config_bk-secrets"
+SECRET_VOLUME="beekeeper_bk-secrets"
 
 
 
@@ -27,10 +27,8 @@ set -e
 set -x
 
 docker volume create  ${SECRET_VOLUME}
-pushd bk-config
-docker build -t waggle/bk-config .
-popd
-docker create --name beekeeper-temporary -v ${SECRET_VOLUME}:/usr/lib/waggle/ waggle/bk-sshd
+
+docker create --name beekeeper-temporary -v ${SECRET_VOLUME}:/usr/lib/waggle/ waggle/beekeeper-sshd
 
 sleep 1
 set +x
