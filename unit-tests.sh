@@ -4,10 +4,17 @@
 
 ### TEST REGISTRATION
 
+
+DOCKER_NETWORK=$(docker network ls --format '{{.Name}}' | grep beekeeper)
+
+echo "DOCKER_NETWORK: ${DOCKER_NETWORK}"
+
 set -e
 set -x
 
-JSON=$(docker exec -i beekeeper_bk-sshd_1 bash -c 'ssh -o StrictHostKeyChecking=no  sage_registration@bk-sshd -p 22 -i /usr/lib/waggle/registration_keys/registration register 0000000000000001')
+
+
+JSON=$(docker run -i --rm --network ${DOCKER_NETWORK} -v ${PWD}/beekeeper-keys/registration_certs/untilforever/:/untilforever/ waggle/beekeeper-api bash -c 'ssh -o StrictHostKeyChecking=no  sage_registration@bk-sshd -p 22 -i /untilforever/registration register 0000000000000001')
 set +x
 echo "JSON: ${JSON}"
 echo "---------------------------"
