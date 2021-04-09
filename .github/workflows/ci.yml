@@ -13,9 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Create keys
-        run: ./create-keys init --nopassword
+        run: ./create-keys.sh init --nopassword
       - name: Create reg cert
-        run: ./create-keys cert untilforever forever
+        run: ./create-keys.sh cert untilforever forever
       - name: Build docker images
         run: docker-compose build
       - name: Start docker-compose
