@@ -19,6 +19,11 @@ spec:
       containers:
       - image: waggle/beekeeper-api:latest
         name: beekeeper-api
+        volumeMounts:
+          - name: ca-secret
+            mountPath: "/usr/lib/waggle/certca/"
+            readOnly: true
+
         env:
         - name: MYSQL_HOST
           valueFrom:
@@ -35,14 +40,38 @@ spec:
             configMapKeyRef:
               name: beekeeper-api-config
               key: MYSQL_USER
+        - name: BEEKEEPER_SSHD_API
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-api-config
+              key: BEEKEEPER_SSHD_API
+
         - name: MYSQL_PASSWORD
           valueFrom:
             secretKeyRef:
               name: beekeeper-api-secret
               key: MYSQL_PASSWORD
 
+        - name: KEY_GEN_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_TYPE
+        - name: KEY_GEN_ARGS
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_ARGS
+
+
         ports:
           - name: api
             containerPort: 5000
+
+      volumes:
+      - name: ca-secret
+        secret:
+          secretName: beekeeper-sshd-ca-secret
+          defaultMode: 0400
 
       restartPolicy: Always

@@ -6,3 +6,4 @@ data:
   MYSQL_HOST: mysql
   MYSQL_DATABASE: Beekeeper
   MYSQL_USER: beekeeper
+  BEEKEEPER_SSHD_API: http://beekeeper-sshd-api/

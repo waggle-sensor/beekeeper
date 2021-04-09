@@ -41,4 +41,4 @@ fi
 
 ### TEST BEEKEEPER API
 set -x
-docker exec beekeeper_bk-api_1 /bin/bash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 90 --include=./*'
+docker exec beekeeper_bk-api_1 /bin/bash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 85 --include=./*'

@@ -1,25 +1,9 @@
 version: '3.7'
 services:
 
-  #bk-register:
-  #  image: waggle/beekeeper-register
-  #  build: bk-register
-  #  restart: always
-  #  depends_on:
-  #    - bk-api
-  #  init: true
-  #  ports:
-  #    - "127.0.0.1:24181:80"
-  #  environment:
-  #    KEY_GEN_TYPE: ${KEY_GEN_TYPE}
-  #    KEY_GEN_ARGS: ${KEY_GEN_ARGS}
-  #    # see .env
-  #  volumes:
-  #    - "bk-secrets:/usr/lib/waggle/:ro"
-  #    - ${PWD}/bk-register/ROOTFS/opt/sage/beekeeper/register:/opt/sage/beekeeper/register
 
   bk-sshd:
-    image: waggle/beekeeper-sshd
+    image: waggle/beekeeper-sshd:latest
     build: bk-sshd
     restart: always
     #depends_on:
@@ -35,10 +19,12 @@ services:
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
-      - "bk-secrets:/usr/lib/waggle/:rw"
+
+      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
+      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
 
   bk-api:
-    image: waggle/beekeeper-api
+    image: waggle/beekeeper-api:latest
     build: bk-api
     restart: always
     depends_on:
@@ -47,13 +33,14 @@ services:
       - mysql.env
       - .env
     volumes:
-      - "bk-secrets:/usr/lib/waggle/:ro"
+
+      - ${PWD}/test-data:/test-data/:ro
       - ${PWD}/bk-api:/usr/src/app     # for easier development
+      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
+      - ${PWD}/beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
     ports:
       - "5000:5000"  # for testing purposes
-    #environment:
-    #  FLASK_APP: bk-api.py
-    #  FLASK_ENV: production
+
 
 
   db:
@@ -66,7 +53,7 @@ services:
 volumes:
   #bk-homedirs:
   beekeeper-db:
-  bk-secrets:
+  #bk-secrets:
   #  external:
   #    name: beekeeper-config_bk-secrets
 

@@ -72,16 +72,22 @@ fi
 
 ### INIT ###
 
-
-echo "Enter password for new CA:"
-read -s ca_password
-
-
-
 if [ -z "${KEY_GEN_TYPE}" ] ; then
-    echo "Env variable KEY_GEN_TYPE not defined"
-    exit 1
+    KEY_GEN_TYPE="ed25519"
 fi
+
+echo "KEY_GEN_TYPE: ${KEY_GEN_TYPE}"
+
+
+if [ "${3}_" != "--nopassword_" ] ; then
+    echo "Enter password for new CA:"
+    read -s ca_password
+else
+    # needed for automated testing
+    export ca_password=""
+fi
+
+
 
 set -e
 

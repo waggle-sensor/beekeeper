@@ -25,7 +25,7 @@ def client():
 
 def test_root(client):
     rv = client.get('/')
-    assert b'SAGE Beekeeper' in rv.data
+    assert b'SAGE Beekeeper API' in rv.data
 
 def test_registration(client):
 
@@ -45,6 +45,54 @@ def test_registration(client):
     result = rv.get_json()
     assert "ssh_key_private" in result
     assert "ssh_key_public" in result
+
+
+def test_assign_node_to_beehive(client):
+
+    # create new beehive
+    rv = client.delete('/beehives/test-beehive2')
+    result = rv.get_json()
+    assert "deleted" in result  # 0 or 1, either is fine here
+
+    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
+    result = rv.get_json()
+    assert "success" in result
+
+    # upload beehive certs
+    #data = {
+    #    "tls-key": (io.BytesIO(b'a'), "dummmy"),
+    #    'tls-cert': (io.BytesIO(b'b'), "dummmy"),
+    #    'ssh-key': (io.BytesIO(b'c'), "dummmy"),
+    #    'ssh-pub': (io.BytesIO(b'd'), "dummmy"),
+    #    'ssh-cert': (io.BytesIO(b'e'), "dummmy")
+    #}
+    data = {
+        "tls-key": (open("/test-data/beehive_ca/tls/cakey.pem", "rb"), "dummmy"),
+        'tls-cert': (open("/test-data/beehive_ca/tls/cacert.pem", "rb"), "dummmy"),
+        'ssh-key': (open("/test-data/beehive_ca/ssh/ca", "rb"), "dummmy"),
+        'ssh-pub': (open("/test-data/beehive_ca/ssh/ca.pub", "rb"), "dummmy"),
+        'ssh-cert': (open("/test-data/beehive_ca/ssh/ca-cert.pub", "rb"), "dummmy")
+    }
+    rv = client.post('/beehives/test-beehive2', content_type='multipart/form-data', data=data)
+    result = rv.get_json()
+    assert "modified" in result
+
+    #register node
+    rv = client.get('/register?id=testnode2')
+    assert rv.status_code == 200
+    result = rv.get_json()
+    assert 'certificate'  in result
+
+
+    #assign node
+    rv = client.post('/node/testnode2', data = json.dumps({"assign_beehive": "test-beehive2"}))
+    result = rv.get_json()
+    assert "success" in result
+
+
+
+
+
 
 
 
@@ -187,7 +235,7 @@ def test_credentials(client):
     assert rv.status_code == 200
     result = rv.get_json()
     assert "deleted" in result
-    assert result["deleted"] == 1
+    assert result["deleted"] == 2
 
 
 def test_beehives(client):
@@ -196,7 +244,7 @@ def test_beehives(client):
     result = rv.get_json()
     assert "deleted" in result  # 0 or 1, either is fine here
 
-    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive"}))
+    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive", "key-type": "rsa-sha2-256"}))
     result = rv.get_json()
     assert "success" in result
 

@@ -247,36 +247,99 @@ class BeekeeperDB():
 
         return result
 
-    def get_node_credentials(self, node_id):
+    def get_node_keypair(self, node_id):
 
-        stmt = f'SELECT ssh_key_private, ssh_key_public FROM `node_credentials` WHERE `id` = %s'
+        return self.get_node_credentials_all(node_id, "_beekeeper_")
+
+
+    def set_node_keypair(self, node_id, creds):
+
+        #creds["id"] = node_id
+
+        #ssh_key_private = creds["ssh_key_private"]
+        #ssh_key_public = creds["ssh_key_public"]
+        for field in [ "ssh_key_private", "ssh_key_public"  ]:
+            if not field in creds:
+                raise Exception(f"Field {field} missing.")
+            if not creds[field]:
+                raise Exception(f"Field {field} empty.")
+
+        count = self.set_node_credentials(node_id, "_beekeeper_", creds)
+
+        if count != 2:
+            raise Exception(f"Insertions failed")
+
+        return
+
+    def set_node_credentials(self, node_id, namespace, values):
+
+        count = 0
+        for field in values:
+            load_obj = {"id": node_id, "namespace": namespace, "name": field, "value": values[field] }
+            count += self.insert_object("node_credentials", load_obj)
+
+        return count
+
+
+    def get_node_credentials_all(self, node_id, namespace):
+
+        stmt = f'SELECT name, value FROM `node_credentials` WHERE `id` = %s AND `namespace` = %s'
         logger.debug(f'statement: {stmt}')
 
-        self.cur.execute(stmt, (node_id,))
+        self.cur.execute(stmt, (node_id,namespace))
+        rows = self.cur.fetchall()
+        if not rows:
+            #raise Exception("Node not found")
+            return None
+
+        return_obj = {}
+        for row in rows:
+            return_obj[row[0]] = row[1]
+
+        return return_obj
+
+    def get_node_credential(self, node_id, namespace, name):
+
+        stmt = f'SELECT value FROM `node_credentials` WHERE `id` = %s AND `namespace` = %s AND `name` = %s'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt, (node_id,namespace, name))
         row = self.cur.fetchone()
         if not row:
             #raise Exception("Node not found")
             return None
 
-        return {"ssh_key_private" : row[0], "ssh_key_public" : row[1]}
-
-    def set_node_credentials(self, node_id, creds):
-
-        creds["id"] = node_id
-
-        #ssh_key_private = creds["ssh_key_private"]
-        #ssh_key_public = creds["ssh_key_public"]
-
-        self.insert_object("node_credentials", creds)
-
-        return
+        return row[0]
 
 
     def get_beehive(self, id):
-        return self.get_object("beehives", "id", id)
+        result = self.get_object("beehives", "id", id)
+        if not result:
+            return None
 
-    def create_beehive(self, id):
-        beehive_obj = {"id": id}
+        if not isinstance(result, dict):
+            raise Exception("get_object did not return a dict")
+
+
+        for user_visible_field in ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]:
+            col_name = user_visible_field.replace("-", "_ca_")
+            result[user_visible_field] = result[col_name]
+            del result[col_name]
+
+        for user_visible_field in ["key-type", "key-type-args"]:
+            col_name = user_visible_field.replace("-", "_")
+            result[user_visible_field] = result[col_name]
+            del result[col_name]
+
+
+
+        return result
+
+    def create_beehive(self, id, key_type, key_type_args):
+        beehive_obj = {"id": id, "key_type": key_type}
+        if key_type_args:
+            beehive_obj["key_type_args"] = key_type_args
+
         return self.insert_object("beehives", beehive_obj)
 
 

@@ -24,10 +24,9 @@ metadata:
 spec:
   selector:
     k8s-app: beekeeper-sshd
-  type: NodePort
+  type: LoadBalancer
   ports:
   - name: ssh
-    port: 22
+    port: 49190
     protocol: TCP
     targetPort: 22
-    nodePort: 30036

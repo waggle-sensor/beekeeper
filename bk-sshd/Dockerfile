@@ -40,9 +40,10 @@ RUN sed -i -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     /etc/ssh/sshd_config
 
 
-RUN echo "HostKey /usr/lib/waggle/bk-server/beekeeper_server_key" >> /etc/ssh/sshd_config
-RUN echo "HostCertificate /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pub" >> /etc/ssh/sshd_config
+RUN echo "HostKey           /usr/lib/waggle/bk-server/beekeeper_server_key" >> /etc/ssh/sshd_config
+RUN echo "HostCertificate   /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pub" >> /etc/ssh/sshd_config
 RUN echo "TrustedUserCAKeys /usr/lib/waggle/certca/beekeeper_ca_key.pub" >> /etc/ssh/sshd_config
+
 RUN echo "StreamLocalBindUnlink yes" >> /etc/ssh/sshd_config
 RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
 RUN echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
@@ -55,5 +56,5 @@ COPY bin/* /usr/local/bin/
 EXPOSE 22
 #CMD ["/usr/bin/supervisord"]
 #CMD ["/entrypoint.sh"]
-ENTRYPOINT ["/entrypoint.sh"]
-#CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+#ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

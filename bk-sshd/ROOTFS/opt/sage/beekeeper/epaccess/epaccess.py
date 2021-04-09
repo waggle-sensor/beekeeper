@@ -53,8 +53,9 @@ def setup_app():
 
         #print(bk_api_result)
         result_message = bk_api_result.decode("utf-8").strip()   # bk_api_result.decode("utf-8").strip()
-        if 'SAGE Beekeeper API' != result_message:
-            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
+        expected_response = 'SAGE Beekeeper API'
+        if expected_response != result_message:
+            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\", expected  \"{expected_response}\"")
             time.sleep(2)
             continue
 

@@ -36,6 +36,13 @@ ssh -o UserKnownHostsFile=./known_hosts  sage_registration@bk-sshd -p 22 -i regi
 ```
 
 
+`/etc/ssh/ssh_known_hosts` example:
+```text
+@cert-authority beehive.honeyhouse.one ssh-ed25519 AAAAC.....
+```
+
+
+
 # example: copy key files into vagrant
 
 ```bash
