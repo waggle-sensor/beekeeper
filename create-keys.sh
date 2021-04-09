@@ -4,7 +4,7 @@
 if [ "${1}_" != "native_" ] ; then
 
 
-    docker run -it -v `pwd`:/workdir/:rw --workdir=/workdir --env KEY_GEN_TYPE=${KEY_GEN_TYPE}  waggle/waggle-pki-tools ./create-keys.sh native ${@}
+    docker run -i -v `pwd`:/workdir/:rw --workdir=/workdir --env KEY_GEN_TYPE=${KEY_GEN_TYPE}  waggle/waggle-pki-tools ./create-keys.sh native ${@}
 
     exit 0
 fi
