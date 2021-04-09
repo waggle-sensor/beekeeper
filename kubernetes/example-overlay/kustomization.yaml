@@ -8,9 +8,9 @@ bases:
 # example to specify different image tag
 images:
   - name: waggle/beekeeper-sshd
-    newTag: develop
+    newTag: latest
   - name: waggle/beekeeper-api
-    newTag: develop
+    newTag: latest
 
 
 resources:
