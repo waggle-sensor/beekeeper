@@ -19,7 +19,7 @@ services:
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
-
+      - ${PWD}/beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
       - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
       - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
 
