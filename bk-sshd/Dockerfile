@@ -31,8 +31,14 @@ RUN useradd -mr sage_registration
 RUN echo 'sage_registration:3WSoOOg3JksknNe$Aizd4oG*7xn*!Fvo' | chpasswd
 
 RUN cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig
-# prohibit-password
-RUN sed -i -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
+
+
+RUN echo "Port 22" >> /etc/ssh/sshd_config
+RUN echo "Port 2201" >> /etc/ssh/sshd_config
+
+
+RUN sed -i -e 's/#Port .*/Port 22\nPort 2201/' \
+    -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     -e 's/^.\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' \
     -e 's/^.\?PasswordAuthentication.*/PasswordAuthentication no/' \
     -e 's/^.\?UsePAM.*/UsePAM no/' \
@@ -47,6 +53,12 @@ RUN echo "TrustedUserCAKeys /usr/lib/waggle/certca/beekeeper_ca_key.pub" >> /etc
 RUN echo "StreamLocalBindUnlink yes" >> /etc/ssh/sshd_config
 RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
 RUN echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
+
+
+# admin via 2201 , not 22
+RUN echo "Match LocalPort 22" >> /etc/ssh/sshd_config
+RUN echo "    DenyUsers root" >> /etc/ssh/sshd_config
+
 
 # copy over file system modifications
 COPY ROOTFS/ /
