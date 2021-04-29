@@ -30,3 +30,19 @@ spec:
     port: 49190
     protocol: TCP
     targetPort: 22
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beekeeper-sshd-adminssh
+  labels:
+    app: beekeeper-sshd-adminssh
+spec:
+  selector:
+    k8s-app: beekeeper-sshd
+  type: ClusterIP
+  ports:
+  - name: adminssh
+    port: 2201
+    protocol: TCP
+    targetPort: 2201
