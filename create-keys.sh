@@ -99,6 +99,15 @@ if [ ! -e ${DATADIR}/admin/admin.pem  ] ; then
     set +x
 fi
 
+### nodes key-pair ###
+# the public key of this key-pair is baked into the images, so beekeeper can ssh into the nodes.
+if [ ! -e ${DATADIR}/nodes-key/nodes.pem  ] ; then
+    set -x
+    mkdir -p ${DATADIR}/nodes-key
+    ssh-keygen -f ${DATADIR}/nodes-key/nodes.pem -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''
+    set +x
+fi
+
 
 CERT_CA_TARGET_DIR="${DATADIR}/certca"
 ### CA ###
