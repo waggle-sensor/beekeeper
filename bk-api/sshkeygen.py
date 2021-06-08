@@ -15,6 +15,8 @@ import tempfile
 import os
 import subprocess as sp
 import sys
+from typing import runtime_checkable
+import pathlib
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -24,6 +26,42 @@ handler.setFormatter(formatter)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
+
+
+def run_command_communicate(command, input_str):
+    import subprocess
+
+    p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    # returns output_stdout,output_stderr
+    if input_str:
+        return p.communicate(input=input_str.encode())
+
+    p.communicate()
+
+
+def run_command(cmd, return_stdout=False):
+
+    cmd_str = " ".join(cmd)
+    logger.debug(f"Executing: {cmd_str}")
+
+    result = sp.run(cmd, capture_output=True)
+
+
+    if result.returncode != 0:
+        logger.error(f"Command failed with result.returncode: {result.returncode}")
+        logger.error(f"result.stdout: {result.stdout}")
+        logger.error(f"result.stderr: {result.stderr}")
+        # raises exception
+        result.check_returncode()
+
+    if return_stdout:
+        logger.error(f"result.stdout: {result.stdout}")
+        #return "xxx"
+        return result.stdout.decode("utf-8")
+
+    return
+
 
 
 class SSHKeyGen:
@@ -67,15 +105,9 @@ class SSHKeyGen:
             raise Exception("key_gen_type undefined")
 
         cmd = ["ssh-keygen", "-f", priv_file, "-N", "", "-t" , key_gen_type ] + key_gen_args.split()
-        logger.debug("Creating key-pair: {}".format(" ".join(cmd)))
-        result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
-        if result.returncode != 0:
-            logger.error(
-                f"Error: Unable to create key-pair [{file}][key_gen_type: {key_gen_type}, key_gen_args: {key_gen_args}]"
-            )
-            # raise exception
-            result.check_returncode()
+        run_command(cmd)
+
 
         with open(priv_file, "r") as priv_key:
             private_key = priv_key.read()
@@ -140,17 +172,8 @@ class SSHKeyGen:
             "{}.pub".format(self._key_file),
         ]
 
-        logger.debug("Creating reverse tunnel certificate: {}".format(" ".join(cmd)))
-        #result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
-        result = sp.run(cmd, capture_output=True)
 
-
-        if result.returncode != 0:
-            logger.error("Unable to create certificate [name: {name}][ca: {ca_path}]")
-            logger.error(f"result.stdout: {result.stdout}")
-            logger.error(f"result.stderr: {result.stderr}")
-            # raise exception
-            result.check_returncode()
+        run_command(cmd)
 
         #self.results["user"] = user
         certificate = ""
@@ -160,21 +183,15 @@ class SSHKeyGen:
 
         return { "certificate": certificate, "user": user}
 
+
+    # ca_path: beehive-specific CA for ssh (e.g. upload)
     def create_upload_certificate(self, ca_path, key_type, key_type_args, node_id):
         # key_type e.g. rsa-sha2-256 or Ed25519
         # dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk AND rsa-sha2-256 , rsa-sha2-512
         # see https://man7.org/linux/man-pages/man1/ssh-keygen.1.html
 
 
-       # export CAKEYFILE=/beehives/test-beehive2/ssh/ca
-        #export name=node-testnode2
-        #export keyfile=testnode2
-        #ssh-keygen -s "$CAKEYFILE" \
-        #  -t rsa-sha2-256 \
-        #  -I "$name ssh host key" \
-        #  -n "$name" \
-        #  -V "-5m:+365d" \
-        # "$keyfile"
+
 
         if not key_type_args:
             key_type_args = ""
@@ -195,15 +212,8 @@ class SSHKeyGen:
             "{}.pub".format(self._key_file),
             ]
 
-        logger.debug("Creating uploader certificate: {}".format(" ".join(cmd)))
-        result = sp.run(cmd, capture_output=True ) #stdout=sp.PIPE, stderr=sp.PIPE
-        logger.debug("f{result.stdout}")
-        if result.returncode != 0:
-            logger.error(
-                f"Unable to create uploader certificate [name: {user}][ca: {ca_path}] result.stderr: {result.stderr}"
-            )
-            # raise exception
-            result.check_returncode()
+        run_command(cmd)
+
 
         #self.results["user"] = user
         certificate = ""
@@ -212,3 +222,56 @@ class SSHKeyGen:
             certificate = cert_key.read()
 
         return { "certificate": certificate, "user": user}
+
+    def create_node_tls_certificate(self, tls_ca_path, tls_ca_cert_path, name):
+
+        keyfile = os.path.join(self.base_dir_name, name+'.key.pem')  # output
+        csrfile = os.path.join(self.base_dir_name, name+'.csr.pem')
+        certfile = os.path.join(self.base_dir_name, name+'.cert.pem') # output
+
+        # create key and signing request in one step
+
+        cmd = [
+            "openssl",
+            "req",
+            "-new",
+            "-nodes",
+            "-newkey", "rsa:4096",
+            "-keyout", keyfile,
+            "-out" , csrfile,
+            "-subj", f'/CN={name}'
+            ]
+
+        run_command(cmd)
+
+        # sign request using ca
+        #openssl x509 -req \
+        #    -in "$csrfile" -out "$certfile" \
+        #    -CAkey "$CAKEYFILE" -CA "$CACERTFILE" -CAcreateserial \
+        #    -sha256 -days 365
+
+        cmd = [
+            "openssl",
+            "x509",
+            "-req",
+            "-in",  csrfile,
+            "-out", certfile,
+            "-CAkey", tls_ca_path,
+            "-CA", tls_ca_cert_path,
+            "-CAcreateserial",
+            "-sha256",
+            "-days", "365"
+        ]
+
+        run_command(cmd)
+
+        # collect outputs
+
+        result = {}
+
+        result["keyfile"] = pathlib.Path(keyfile).read_text()
+        result["certfile"] = pathlib.Path(certfile).read_text()
+        result["user"] = name
+
+
+        return result

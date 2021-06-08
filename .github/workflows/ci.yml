@@ -22,8 +22,13 @@ jobs:
         run: docker-compose up -d
       - name: Wait for docker-compose services
         run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper API_"  ] ; do echo waiting... ; sleep 2 ; done
-      - name: Wait a bit more
-        run: sleep 10
+      - name: Wait for reverse ssh-tunnel
+        run: |
+          until docker exec -i beekeeper_bk-sshd_1 test -e /home_dirs/node-0000000000000001/rtun.sock
+          do
+            echo waiting for /home_dirs/node-0000000000000001/rtun.sock
+            sleep 1
+          done
       - name: Unit tests
         run: ./unit-tests.sh
       #- name: Test docker images run

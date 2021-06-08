@@ -8,7 +8,7 @@ requests
 #python-jenkins
 #xmltodict
 #prometheus_client
-#pyyaml
+pyyaml
 gunicorn
 Werkzeug
 python-dateutil

@@ -33,7 +33,9 @@ services:
       - mysql.env
       - .env
     volumes:
-
+      - ${PWD}/beekeeper-keys/admin/admin.pem:/config/admin-key/admin.pem:ro
+      #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/node_key.pem:ro
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem:/config/nodes/node_key.pem:ro
       - ${PWD}/test-data:/test-data/:ro
       - ${PWD}/bk-api:/usr/src/app     # for easier development
       - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
@@ -49,6 +51,17 @@ services:
     volumes:
       - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
       - beekeeper-db:/var/lib/mysql
+
+  node1:
+    image: waggle/wes-minimal
+    volumes:
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
+      # for /etc/ssh/ssh_known_hosts:
+      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
+      # so beekeeper can ssh into it:
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
+
 
 volumes:
   #bk-homedirs:

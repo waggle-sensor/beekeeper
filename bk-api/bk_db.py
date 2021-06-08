@@ -380,6 +380,31 @@ class BeekeeperDB():
         self.db.commit()
         return self.cur.rowcount
 
+    # updates is a dict {column: value}
+    def update_object_fields(self, table_name, updates, filter_key, filter_value):
+
+        setter = []
+        values = []
+        for key in updates:
+            setter.append(f"{key} = %s ")
+            #logger.debug(f"pair: {key} {updates[key]}")
+            values.append(updates[key])
+
+        setter_str = ", ".join(setter)
+        #logger.debug(f"setter_str: {setter_str}")
+
+        stmt = f"UPDATE {table_name} SET {setter_str} WHERE {filter_key} = %s"
+        values.append(filter_value)
+        debug_stmt = stmt
+        for i in values:
+            debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
+        logger.debug(f'(update_object_fields) statement: {debug_stmt}')
+
+        self.cur.execute(stmt, (*values, ))
+        self.db.commit()
+
+        return self.cur.rowcount
+
     def get_object(self, table_name, key, value):
 
         fields = table_fields['beehives']
@@ -397,6 +422,24 @@ class BeekeeperDB():
 
 
         return dict(zip(fields, row))
+
+    def get_objects(self, table_name, fields=None):
+        if not fields:
+            fields = table_fields['beehives']
+
+        fields_str = ", ".join(fields)
+
+        stmt = f'SELECT {fields_str} FROM `{table_name}`'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt)
+        rows = self.cur.fetchall()
+
+        result = []
+        for row in rows:
+            result.append(dict(zip(fields, row)))
+
+        return result
 
 
     def insert_object(self, table_name, row_object):

@@ -17,12 +17,33 @@ docker-compose up --build
 ```
 
 
+# Register beehive with beekeeper
+Example:
+```bash
+curl localhost:5000/beehives -d '{"id": "my-beehive", "key-type": "rsa-sha2-256", "rmq-host":"<host>", "rmq-port": <port>, "upload-host":"<host>", "upload-port": <port>}'
+```
+Verify:
+```bash
+curl localhost:5000/beehives
+```
 
+Create beehive CA credentials: [https://github.com/waggle-sensor/waggle-pki-tools](https://github.com/waggle-sensor/waggle-pki-tools)
 
+Add credentials for beehive to beekeeper
+```bash
+cd test-data/beehive_ca
+curl -F "tls-key=@tls/cakey.pem" -F "tls-cert=@tls/cacert.pem"  -F "ssh-key=@ssh/ca" -F "ssh-pub=@ssh/ca.pub" -F "ssh-cert=@ssh/ca-cert.pub"  localhost:5000/beehives/my-beehive
+```
 
+# assign node to a beehive
 
+This will only work once node has registered.
 
-# registration example:
+```bash
+curl localhost:5000/node/0000000000000001 -d '{"assign_beehive": "my-beehive"}'
+```
+
+# Node registration example:
 
 
 ```bash
@@ -61,3 +82,10 @@ Unit-testing is executed via
 - `./unit-tests.sh`
 
 Requires running docker-compose enviornment.
+
+## Development
+
+Access MySQL
+```bash
+docker exec -ti  beekeeper_db_1 mysql -u root -ptesttest -D Beekeeper
+```

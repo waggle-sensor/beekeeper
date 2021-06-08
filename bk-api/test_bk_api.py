@@ -6,6 +6,7 @@ import os
 
 import json
 import io
+import time
 
 # from https://flask.palletsprojects.com/en/1.1.x/testing/
 @pytest.fixture
@@ -58,6 +59,15 @@ def test_assign_node_to_beehive(client):
     result = rv.get_json()
     assert "success" in result
 
+    # post second time just to increase test coverage
+    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
+
+    rv = client.get('/beehives')
+    result = rv.get_json()
+    assert "data" in result
+    assert len(result["data"]) > 0
+
+
     # upload beehive certs
     #data = {
     #    "tls-key": (io.BytesIO(b'a'), "dummmy"),
@@ -77,15 +87,17 @@ def test_assign_node_to_beehive(client):
     result = rv.get_json()
     assert "modified" in result
 
-    #register node
-    rv = client.get('/register?id=testnode2')
-    assert rv.status_code == 200
-    result = rv.get_json()
-    assert 'certificate'  in result
+
+
+    #register node (not needed, node does that)
+    #rv = client.get('/register?id=testnode2')
+    #assert rv.status_code == 200
+    #result = rv.get_json()
+    #assert 'certificate'  in result
 
 
     #assign node
-    rv = client.post('/node/testnode2', data = json.dumps({"assign_beehive": "test-beehive2"}))
+    rv = client.post('/node/0000000000000001', data = json.dumps({"assign_beehive": "test-beehive2"}))
     result = rv.get_json()
     assert "success" in result
 
