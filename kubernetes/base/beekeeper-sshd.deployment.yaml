@@ -83,9 +83,9 @@ spec:
         configMap:
           name: beekeeper-sshd-config
       - name: authorized-keys
-        configMap:
+        secret:
           defaultMode: 0400
-          name: beekeeper-sshd-authorized-keys-config
+          secretName: beekeeper-sshd-authorized-keys-secret
 
 
       - name: server-secret

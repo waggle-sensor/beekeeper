@@ -10,7 +10,7 @@ images:
   - name: waggle/beekeeper-sshd
     newTag: latest
   - name: waggle/beekeeper-api
-    newTag: latest
+    newTag: develop
 
 
 resources:
@@ -23,7 +23,7 @@ resources:
   #- beekeeper-sshd.service.yaml
 
 
-#configMapGenerator:
+#configMapGenerator: use secret instead!
 #  - name: beekeeper-sshd-authorized-keys-config
 #    files:
 #      - admin.pem.pub

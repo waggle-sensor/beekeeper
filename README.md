@@ -17,9 +17,10 @@ docker-compose up --build
 ```
 
 
-# Register beehive with beekeeper
+# Register a beehive with beekeeper
 Example:
 ```bash
+# if needed: kubectl port-forward service/beekeeper-api 5000:5000
 curl localhost:5000/beehives -d '{"id": "my-beehive", "key-type": "rsa-sha2-256", "rmq-host":"<host>", "rmq-port": <port>, "upload-host":"<host>", "upload-port": <port>}'
 ```
 Verify:

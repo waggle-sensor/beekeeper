@@ -23,6 +23,14 @@ spec:
           - name: ca-secret
             mountPath: "/usr/lib/waggle/certca/"
             readOnly: true
+          - name: nodes-secret
+            mountPath: "/config/nodes/nodes.pem"
+            subPath: nodes.pem
+            readOnly: true
+          - name: admin-key
+            mountPath: /config/admin-key/admin.pem
+            subPath: admin.pem
+            readOnly: true
 
         env:
         - name: MYSQL_HOST
@@ -45,6 +53,11 @@ spec:
             configMapKeyRef:
               name: beekeeper-api-config
               key: BEEKEEPER_SSHD_API
+        - name: BEEKEEPER_SSHD_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-api-config
+              key: BEEKEEPER_SSHD_HOST
 
         - name: MYSQL_PASSWORD
           valueFrom:
@@ -73,5 +86,13 @@ spec:
         secret:
           secretName: beekeeper-sshd-ca-secret
           defaultMode: 0400
+      - name: nodes-secret
+        secret:
+          secretName: beekeeper-api-nodes-secret
+          defaultMode: 0400
+      - name: admin-key
+        secret:
+          defaultMode: 0400
+          secretName: beekeeper-sshd-authorized-keys-secret
 
       restartPolicy: Always

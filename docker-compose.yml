@@ -34,8 +34,8 @@ services:
       - .env
     volumes:
       - ${PWD}/beekeeper-keys/admin/admin.pem:/config/admin-key/admin.pem:ro
-      #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/node_key.pem:ro
-      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem:/config/nodes/node_key.pem:ro
+      #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/nodes.pem:ro
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem:/config/nodes/nodes.pem:ro
       - ${PWD}/test-data:/test-data/:ro
       - ${PWD}/bk-api:/usr/src/app     # for easier development
       - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey

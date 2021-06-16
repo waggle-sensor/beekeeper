@@ -112,10 +112,11 @@ export BEEKEEPER_KEYS_DIR=~/git/beekeeper/beekeeper-keys
 # Your production key should be password protected. Copy the key into your trusted execution environment,
 # remove the password and *then* create the secret: ssh-keygen -p -f ./beekeeper_ca_key
 
+# for unprotected key in test env:
 kubectl create secret generic beekeeper-sshd-ca-secret \
   --from-file=${BEEKEEPER_KEYS_DIR}/certca/beekeeper_ca_key \
   --from-file=${BEEKEEPER_KEYS_DIR}/certca/beekeeper_ca_key.pub
-# OR
+# OR (for protected key on the target host)
 kubectl create secret generic beekeeper-sshd-ca-secret \
   --from-file=./beekeeper_ca_key \
   --from-file=./beekeeper_ca_key.pub
@@ -125,9 +126,16 @@ kubectl create secret generic beekeeper-sshd-server-secret \
   --from-file=${BEEKEEPER_KEYS_DIR}/bk-server/beekeeper_server_key-cert.pub \
   --from-file=${BEEKEEPER_KEYS_DIR}/bk-server/beekeeper_server_key.pub
 
-kubectl create configmap beekeeper-sshd-authorized-keys-config \
+
+kubectl create secret generic beekeeper-sshd-authorized-keys-secret \
   --from-file=${BEEKEEPER_KEYS_DIR}/admin/admin.pem \
   --from-file=${BEEKEEPER_KEYS_DIR}/admin/admin.pem.pub
+
+# If this is password-protected, copy over to target host, unpack and create secret there.
+kubectl create secret generic beekeeper-api-nodes-secret \
+  --from-file=${BEEKEEPER_KEYS_DIR}/nodes-key/nodes.pem
+
+
 
 cd ./kubernetes
 # test first: kubectl kustomize example-overlay/

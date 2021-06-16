@@ -61,6 +61,8 @@ def test_assign_node_to_beehive(client):
 
     # post second time just to increase test coverage
     rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
+    result = rv.get_json()
+    assert "success" in result
 
     rv = client.get('/beehives')
     result = rv.get_json()
@@ -101,7 +103,10 @@ def test_assign_node_to_beehive(client):
     result = rv.get_json()
     assert "success" in result
 
-
+    #assign node with force
+    rv = client.post('/node/0000000000000001?force=true', data = json.dumps({"assign_beehive": "test-beehive2"}))
+    result = rv.get_json()
+    assert "success" in result
 
 
 

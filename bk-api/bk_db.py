@@ -271,12 +271,12 @@ class BeekeeperDB():
 
         return
 
-    def set_node_credentials(self, node_id, namespace, values):
+    def set_node_credentials(self, node_id, namespace, values, force=False):
 
         count = 0
         for field in values:
             load_obj = {"id": node_id, "namespace": namespace, "name": field, "value": values[field] }
-            count += self.insert_object("node_credentials", load_obj)
+            count += self.insert_object("node_credentials", load_obj, force=force)
 
         return count
 
@@ -442,20 +442,28 @@ class BeekeeperDB():
         return result
 
 
-    def insert_object(self, table_name, row_object):
+    def insert_object(self, table_name, row_object, force=False):
         fields_str , values, replacement_str = self.dict2mysql(row_object)
 
         stmt = f'INSERT INTO {table_name} ({fields_str}) VALUES ({replacement_str})'
+        if force:
+            stmt = f'INSERT INTO {table_name} ({fields_str}) VALUES ({replacement_str}) ON DUPLICATE KEY UPDATE '
+            for key in row_object:
+                stmt += f" {key}=%s,"
+                values.append(row_object[key])
+            stmt = stmt[:-1] # remove last comma
 
         debug_stmt = stmt
         for i in values:
             debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
 
+
+
         print(f'debug_stmt: {debug_stmt}', flush=True)
         self.cur.execute(stmt, (*values, ))
         self.db.commit()
 
-        if self.cur.rowcount != 1:
+        if (not force) and self.cur.rowcount != 1:
             raise Exception(f"insertion went wrong (self.cur.rowcount: {self.cur.rowcount})")
 
         return self.cur.rowcount

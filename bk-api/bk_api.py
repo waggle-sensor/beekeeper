@@ -66,6 +66,7 @@ CA_FILE="/usr/lib/waggle/certca/beekeeper_ca_key"
 
 
 BEEKEEPER_SSHD_API = os.getenv( "BEEKEEPER_SSHD_API", "http://bk-sshd")
+BEEKEEPER_SSHD_HOST = os.getenv( "BEEKEEPER_SSHD_HOST", "bk-sshd")
 #BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
 BEEKEEPER_DB_API = "http://localhost:5000"
 KEY_GEN_TYPE = os.getenv("KEY_GEN_TYPE", "")
@@ -74,7 +75,7 @@ if not KEY_GEN_TYPE:
     sys.exit("KEY_GEN_TYPE not defined")
 
 beehives_root = '/beehives'
-node_key = "/config/nodes/node_key.pem"
+node_key = "/config/nodes/nodes.pem"
 
 # def get_all_nodes():
 
@@ -526,7 +527,7 @@ def node_ssh(node_id, command, input_str=None):
             "-o" , "UserKnownHostsFile=/dev/null",
             "-o", "StrictHostKeyChecking=no",
             "-o", "IdentitiesOnly=true",
-            "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@bk-sshd -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
+            "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
             f"root@foo:",
             command]
 
@@ -565,7 +566,7 @@ def kubectl_apply(node_id, kube_resource):
 
 
 
-def node_assign_beehive(node_id, assign_beehive, this_debug):
+def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
 
     logger.debug("start assign_beehive")
 
@@ -590,12 +591,12 @@ def node_assign_beehive(node_id, assign_beehive, this_debug):
 
 
     try:
-        create_ssh_upload_cert(bee_db, node_id, beehive_obj )
+        create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force )
     except Exception as e:
         raise Exception(f"create_ssh_upload_cert failed: {type(e).__name__} {str(e)}")
 
     try:
-        create_tls_cert_for_node(bee_db, node_id, beehive_obj)
+        create_tls_cert_for_node(bee_db, node_id, beehive_obj, force=force)
     except Exception as e:
         raise Exception(f"create_tls_cert_for_node failed: {type(e).__name__} {str(e)}")
 
@@ -639,7 +640,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug):
         "apiVersion": "v1",
         "kind": "Secret",
         "metadata":
-            {"name": f"{node_id}-tls-secret"},
+            {"name": "wes-beehive-rabbitmq-tls"},
         "type": "Opaque",
         "data":{
             "cert.pem": b64string_encode(tls_cert),
@@ -671,7 +672,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug):
             "name": "waggle-config"
         },
         "data": {
-            "WAGGLE_NODE_ID": node_id,
+            "WAGGLE_NODE_ID": node_id.lower(),
             "WAGGLE_BEEHIVE_RABBITMQ_HOST": rmq_host,
             "WAGGLE_BEEHIVE_RABBITMQ_PORT": str(rmq_port),
             "WAGGLE_BEEHIVE_UPLOAD_HOST": upload_host,
@@ -684,6 +685,53 @@ def node_assign_beehive(node_id, assign_beehive, this_debug):
     if result_stderr:
         logger.error(result_stderr)
 
+    ###########################
+    # beehive-ssh-ca configmap
+
+
+    ca_ssh_pub = beehive_obj.get("ssh_ca_pub", "missing")
+    ca_ssh_cert = beehive_obj.get("ssh_ca_cert", "missing")
+
+    beehive_ssh_ca_ConfigMap = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": "beehive-ssh-ca"
+        },
+        "data" : {
+            "ca.pub":  b64string_encode(ca_ssh_pub)  ,
+            "ca-cert.pub":  b64string_encode(ca_ssh_cert)
+        }
+    }
+
+    result_stdout, result_stderr = kubectl_apply(node_id, beehive_ssh_ca_ConfigMap)
+    logger.debug(result_stdout)
+    if result_stderr:
+        logger.error(result_stderr)
+
+    ###########################
+    # beehive-tls-ca configmap
+
+
+    #ca_ssh_pub = beehive_obj.get("ssh_pub", "missing")
+    ca_tls_cert = beehive_obj.get("tls_ca_cert", "missing")
+
+    beehive_tls_ca_ConfigMap = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": "beehive-tls-ca"
+        },
+        "data" : {
+            "cacert.pem":  b64string_encode(ca_tls_cert)
+
+        }
+    }
+
+    result_stdout, result_stderr = kubectl_apply(node_id, beehive_ssh_ca_ConfigMap)
+    logger.debug(result_stdout)
+    if result_stderr:
+        logger.error(result_stderr)
 
     deploy_script= \
 """\
@@ -738,7 +786,8 @@ cd /opt/waggle-edge-stack/kubernetes
 
 
 
-def create_ssh_upload_cert(bee_db, node_id, beehive_obj ):
+def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
+
 
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
@@ -747,7 +796,8 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj ):
     ssh_upload_cert = bee_db.get_node_credential(node_id, beehive_id, "ssh_upload_cert")
     if ssh_upload_cert:
         # already exists      TODO check expiration date (store explicitly)
-        return
+        if not force:
+            return
 
     # what key type is this beehive using ?
     beehive_key_type = beehive_obj.get("key-type", "")
@@ -802,13 +852,13 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj ):
     upload_certificate_values["ssh_upload_cert"] = upload_certificate["certificate"]
     upload_certificate_values["ssh_upload_user"] = upload_certificate["user"]
 
-    count = bee_db.set_node_credentials(node_id, beehive_id, upload_certificate_values)
+    count = bee_db.set_node_credentials(node_id, beehive_id, upload_certificate_values, force=force)
     if count != 2 :
         raise Exception("Saving ssh upload cert in mysql seems to have failed, expected 2 insertions, but got {count}")
 
     return
 
-def create_tls_cert_for_node(bee_db, node_id, beehive_obj ):
+def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
 
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
@@ -817,7 +867,8 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj ):
     node_tls_cert = bee_db.get_node_credential(node_id, beehive_id, "tls_cert")
     if node_tls_cert:
         # already exists      TODO check expiration date (store explicitly)
-        return
+        if not force:
+            return
 
     logger.debug("call create_beehive_files")
     # make sure /beehives/... files exist
@@ -850,7 +901,7 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj ):
 
 
     #create node TLS (returns keyfile and certfile)
-    result = key_generator.create_node_tls_certificate(tls_ca_path, tls_ca_cert_path, node_id)
+    result = key_generator.create_node_tls_certificate(tls_ca_path, tls_ca_cert_path, node_id.lower())
 
 
     # store results
@@ -859,8 +910,8 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj ):
     upload_values["tls_cert"] = result["certfile"]
     upload_values["tls_user"] = result["user"]
 
-    count = bee_db.set_node_credentials(node_id, beehive_id, upload_values)
-    if count != 3 :
+    count = bee_db.set_node_credentials(node_id, beehive_id, upload_values, force=force)
+    if (not force) and count != 3 :
         raise Exception("Saving node tls files in mysql seems to have failed, expected 3 insertions, but got {count}")
 
 
@@ -883,10 +934,11 @@ class Node(MethodView):
             raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         this_debug = request.args.get('debug', "false") in ["true", "1"]
+        force = request.args.get('force', "false") in ["true", "1"]
 
         if "assign_beehive" in postData:
             try:
-                result = node_assign_beehive(node_id, postData["assign_beehive"], this_debug)
+                result = node_assign_beehive(node_id, postData["assign_beehive"], this_debug, force=force)
             except Exception as e:
                 logger.error(e)
                 raise ErrorResponse(f"node_assign_beehive retruned: { type(e).__name__ }: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
