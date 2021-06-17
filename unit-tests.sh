@@ -15,7 +15,7 @@ docker exec beekeeper_bk-api_1 /bin/bash -c 'coverage run -m pytest -v  &&  cove
 exit 0
 
 ### TEST REGISTRATION
-# THESES tests are obsolete as they ae covered bu the node1 docker container which does a registration
+# THESES tests are obsolete as they ae covered by the node1 docker container which does a registration
 
 DOCKER_NETWORK=$(docker network ls --format '{{.Name}}' | grep beekeeper)
 

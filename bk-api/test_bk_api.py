@@ -31,18 +31,18 @@ def test_root(client):
 def test_registration(client):
 
     # Do it twice to make sure the code for the cached version is included
-    rv = client.get('/register?id=foobar')
+    rv = client.get('/register?id=FOOBAR')
     assert rv.status_code == 200
     result = rv.get_json()
     assert 'certificate'  in result
 
-    rv = client.get('/register?id=foobar')
+    rv = client.get('/register?id=FOOBAR')
     assert rv.status_code == 200
     result = rv.get_json()
     assert 'certificate'  in result
 
 
-    rv = client.get('/credentials/foobar')
+    rv = client.get('/credentials/FOOBAR')
     result = rv.get_json()
     assert "ssh_key_private" in result
     assert "ssh_key_public" in result

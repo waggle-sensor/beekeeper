@@ -39,6 +39,7 @@ import logging
 
 import os.path
 import requests
+import re
 
 from sshkeygen import SSHKeyGen, run_command, run_command_communicate
 import traceback
@@ -259,6 +260,13 @@ def _register(node_id):
 
     if not node_id:
         raise Exception("node_id no defined")
+
+    p = re.compile(f'[A-Z0-9]+', re.ASCII)
+    if not p.fullmatch(node_id):
+        raise Exception("node_id can contain only numbers and upper case characters")
+
+    if len(node_id) < 6:
+        raise Exception("node_id should have at least 6 characters")
 
     # check if key-pair is available
     try:
