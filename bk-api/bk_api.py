@@ -909,7 +909,7 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
 
 
     #create node TLS (returns keyfile and certfile)
-    result = key_generator.create_node_tls_certificate(tls_ca_path, tls_ca_cert_path, node_id.lower())
+    result = key_generator.create_node_tls_certificate(tls_ca_path, tls_ca_cert_path, "node-"+node_id.lower())
 
 
     # store results
@@ -998,39 +998,37 @@ class BeehivesList(MethodView):
 
         beehive_id = postData["id"]
         key_type = postData["key-type"]
-        key_type_args = postData.get("key-type-args", "")
+        #key_type_args = postData.get("key-type-args", "")
 
         bee_db = BeekeeperDB()
 
         #TODO check if beehive already exists
 
-        obj = bee_db.get_beehive(beehive_id)
-        if obj:
-            #raise ErrorResponse(f"Beehive {beehive_id} already exists" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-            # update
+        beehive_obj = {"id": beehive_id}
 
-            modified = 0
-            updates = {}
-            for key in ["key_type", "key_type_args", "rmq_host", "rmq_port" , "upload_host" , "upload_port"]:
-                key_dash = key.replace("_", "-")
-                if not key_dash in postData:
-                    continue
+        #modified = 0
+        #updates = {}
+        for key in ["key_type", "key_type_args", "rmq_host", "rmq_port" , "upload_host" , "upload_port"]:
+            key_dash = key.replace("_", "-")
+            if not key_dash in postData:
+                continue
 
-                updates[key] = postData[key_dash]
-
-            modified = bee_db.update_object_fields("beehives", updates, "id", beehive_id)
-            # modified is always 0 or 1, not more
+            beehive_obj[key] = postData[key_dash]
 
 
 
-            return jsonify({"success": True})
 
-        # create
-        result = bee_db.create_beehive(beehive_id, key_type, key_type_args)
-        if result != 1:
-            raise ErrorResponse(f"Could not create beehive {beehive_id}  ({result})" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+        #if key_type_args:
+        #    beehive_obj["key_type_args"] = key_type_args
 
-        return jsonify({"success": True})
+        modified = bee_db.insert_object("beehives", beehive_obj, force=True)
+
+
+        #modified = bee_db.create_beehive(beehive_id, key_type, key_type_args)
+       # if modified != 1:
+        #    raise ErrorResponse(f"Could not create beehive {beehive_id}  ({modified})" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        return jsonify({"modified": modified})
 
 
 

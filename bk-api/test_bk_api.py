@@ -57,12 +57,13 @@ def test_assign_node_to_beehive(client):
 
     rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
     result = rv.get_json()
-    assert "success" in result
+    assert "modified" in result
+    assert result["modified"] > 0
 
     # post second time just to increase test coverage
     rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
     result = rv.get_json()
-    assert "success" in result
+    assert "modified" in result
 
     rv = client.get('/beehives')
     result = rv.get_json()
@@ -263,7 +264,9 @@ def test_beehives(client):
 
     rv = client.post('/beehives', data = json.dumps({"id": "test-beehive", "key-type": "rsa-sha2-256"}))
     result = rv.get_json()
-    assert "success" in result
+    assert "modified" in result
+
+    assert result["modified"] > 0
 
     # TODO form upload does not work here
     #data = {"tls-key": (None, "a"), 'tls-cert': (None ,'b'), 'ssh-key': (None, 'c'), 'ssh-pub': (None, 'd'), 'ssh-cert': (None, 'e')}
