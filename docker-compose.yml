@@ -10,6 +10,7 @@ services:
     #  - bk-register
     ports:
       - "127.0.0.1:20022:22"
+      - "127.0.0.1:2201:2201"
       - "127.0.0.1:24182:80"
     environment:
         # e.g. SSHD_FLAGS="-ddd"
