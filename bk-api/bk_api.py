@@ -663,14 +663,14 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
 
     ####################
 
-    #for key in ["rmq_host", "rmq_port", "upload_host", "upload_port"]:
-    #    if not key in beehive_obj:
-    #        raise Exception(f"Beekeeper field {key} missing")
+    for key in ["rmq_host", "rmq_port", "upload_host", "upload_port"]:
+        if not key in beehive_obj:
+            raise Exception(f"Beekeeper field {key} missing")
 
-    rmq_host = beehive_obj.get("rmq_host", "missing")
-    rmq_port = beehive_obj.get("rmq_port", "missing")
-    upload_host = beehive_obj.get("upload_host", "missing")
-    upload_port = beehive_obj.get("upload_port", "missing")
+    rmq_host = beehive_obj["rmq_host"]
+    rmq_port = beehive_obj["rmq_port"]
+    upload_host = beehive_obj["upload_host"]
+    upload_port = beehive_obj["upload_port"]
 
 
     waggle_ConfigMap = {
@@ -696,9 +696,16 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     ###########################
     # beehive-ssh-ca configmap
 
+    for key in ["ssh-pub", "ssh-cert", "tls-cert"]:
+        if not key in beehive_obj:
+            available_str = ",".join(list(beehive_obj))
+            raise Exception(f"Beekeeper field {key} missing (got: {available_str})")
 
-    ca_ssh_pub = beehive_obj.get("ssh_ca_pub", "missing")
-    ca_ssh_cert = beehive_obj.get("ssh_ca_cert", "missing")
+    ca_ssh_pub = beehive_obj["ssh-pub"]
+    ca_ssh_cert = beehive_obj["ssh-cert"]
+
+    ca_tls_cert = beehive_obj["tls-cert"]
+
 
     beehive_ssh_ca_ConfigMap = {
         "apiVersion": "v1",
@@ -721,8 +728,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     # beehive-tls-ca configmap
 
 
-    #ca_ssh_pub = beehive_obj.get("ssh_pub", "missing")
-    ca_tls_cert = beehive_obj.get("tls_ca_cert", "missing")
+
+
 
     beehive_tls_ca_ConfigMap = {
         "apiVersion": "v1",
