@@ -56,6 +56,12 @@ Check the logs:
 docker logs beekeeper_bk-api_1
 ```
 
+SSH to the node (via reverse ssh tunnel)
+```bash
+ssh -i ./beekeeper-keys/nodes-key/nodes.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@localhost -p 2201 -i ./beekeeper-keys/admin/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@foo
+```
+
+
 # Node registration example:
 
 
