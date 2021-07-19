@@ -78,25 +78,6 @@ if not KEY_GEN_TYPE:
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
 
-# def get_all_nodes():
-
-#     try:
-#         bk_api_response = requests.get(f'{BEEKEEPER_DB_API}/state', timeout=3)
-#     except Exception as e:
-#         raise Exception(f"Beekeeper DB API ({BEEKEEPER_DB_API}/state) cannot be reached: {str(e)}")
-
-#         #sys.exit(1)
-
-#     if bk_api_response.status_code != 200:
-#         #logger.error("Could not get list of nodes")
-#         raise Exception("Could not get list of nodes")
-
-
-#     json_str = (bk_api_response.content).decode("utf-8")
-#     node_list = json.loads(json_str)
-#     node_list = node_list["data"]
-
-#     return node_list
 
 
 def b64string_encode(input):
@@ -179,26 +160,9 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
 
 
 
-# def check_beekeper():
-#     # check if BEEKEEPER_DB_API is alive
-#     try:
-#         bk_api_result = requests.get(f'{BEEKEEPER_DB_API}', timeout=3).content
-#     except Exception as e:
-#         raise Exception(f"Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}")
 
-#     result_message = bk_api_result.decode("utf-8").strip()
-#     if 'SAGE Beekeeper' != result_message:
-#         raise Exception("Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
-
-#     return
 
 def get_node_keypair(node_id):
-
-    #url = f'{BEEKEEPER_DB_API}/credentials/{node_id}'
-    #try:
-    #    bk_api_result = requests.get(url, timeout=3)
-    #except Exception as e:
-    #    raise Exception(f"Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}")
 
 
     try:
@@ -236,23 +200,6 @@ def post_node_credentials(node_id, private_key, public_key):
         raise Exception(f"set_node_keypair returned: {str(e)}")
 
     return
-    #url = f'{BEEKEEPER_DB_API}/credentials/{node_id}'
-
-    #try:
-    #    bk_api_result = requests.post(url, data=json.dumps(post_creds), timeout=3)
-    #except Exception as e:
-    #    raise Exception(f"Could not post to {url}, requests.get returned: {str(e)}")
-
-    #if bk_api_result.status_code == 200:
-    #    return
-
-    #if bk_api_result.content:
-    #    result_message = bk_api_result.content.decode("utf-8").strip()
-
-
-    #raise Exception(f"{url} returned status_code {bk_api_result.status_code} and response: {result_message}")
-
-
 
 
 def _register(node_id):
@@ -357,7 +304,7 @@ def create_beehive_files(beehive_obj):
     if not os.path.exists(beehive_dir_tls):
         os.makedirs(beehive_dir_tls)
 
- # url -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
+    # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
     files = {   "tls/cakey.pem": "tls-key",
                 "tls/cacert.pem": "tls-cert",
                 "ssh/ca" : "ssh-key",
@@ -455,7 +402,7 @@ class Log(MethodView):
     def post(self):
 
         try:
-#request.get
+
             postData = request.get_json(force=True, silent=False)
 
         except Exception as e:
@@ -512,7 +459,7 @@ class State(MethodView):
 
         return { "data" : node_state }
 
-
+# draft of a scp function, did not end up using it, but might come in handy if needed
 #def scp(source, node_id, target):
 #    command_array = ["scp",
 #            "-i", node_key ,
@@ -792,12 +739,6 @@ cd /opt/waggle-edge-stack/kubernetes
 
     return {"success":True}
 
-    #TODO:
-    # - trigger/notify ansible update
-
-    # works: ssh -i /config/nodes/node_key.pem -o IdentitiesOnly=true -o "ProxyCommand=ssh root@bk-sshd -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@foo
-
-
 
 
 
@@ -1025,16 +966,7 @@ class BeehivesList(MethodView):
 
 
 
-
-        #if key_type_args:
-        #    beehive_obj["key_type_args"] = key_type_args
-
         modified = bee_db.insert_object("beehives", beehive_obj, force=True)
-
-
-        #modified = bee_db.create_beehive(beehive_id, key_type, key_type_args)
-       # if modified != 1:
-        #    raise ErrorResponse(f"Could not create beehive {beehive_id}  ({modified})" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         return jsonify({"modified": modified})
 
@@ -1060,10 +992,6 @@ class Beehives(MethodView):
     # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
     def post(self, beehive_id):
 
-
-        #postData = request.get_json(force=True, silent=False)
-
-       # for field in
 
         expected_forms = ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]
 

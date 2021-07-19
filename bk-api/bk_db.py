@@ -335,10 +335,7 @@ class BeekeeperDB():
 
         return result
 
-    #def create_beehive(self, id, key_type, key_type_args, force=False):
 
-
-    #    return self.insert_object("beehives", beehive_obj, force=force)
 
 
     def list_latest_state(self):
