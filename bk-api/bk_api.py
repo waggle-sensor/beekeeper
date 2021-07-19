@@ -714,8 +714,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
             "name": "beehive-ssh-ca"
         },
         "data" : {
-            "ca.pub":  b64string_encode(ca_ssh_pub)  ,
-            "ca-cert.pub":  b64string_encode(ca_ssh_cert)
+            "ca.pub":  ca_ssh_pub  ,
+            "ca-cert.pub":  ca_ssh_cert
         }
     }
 
@@ -738,7 +738,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
             "name": "beehive-tls-ca"
         },
         "data" : {
-            "cacert.pem":  b64string_encode(ca_tls_cert)
+            "cacert.pem":  ca_tls_cert
 
         }
     }
@@ -857,7 +857,7 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
         raise Exception(f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}")
 
     try:
-        upload_certificate = key_generator.create_upload_certificate(ca_path, beehive_key_type, beehive_key_type_args, node_id)
+        upload_certificate = key_generator.create_upload_certificate(ca_path, beehive_key_type, beehive_key_type_args, node_id.lower())
     except Exception as e:
         raise Exception(f"key_generator.create_upload_certificate returned: {type(e)}: {str(e)}")
 
@@ -868,8 +868,9 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
     upload_certificate_values["ssh_upload_user"] = upload_certificate["user"]
 
     count = bee_db.set_node_credentials(node_id, beehive_id, upload_certificate_values, force=force)
-    if count != 2 :
-        raise Exception("Saving ssh upload cert in mysql seems to have failed, expected 2 insertions, but got {count}")
+    if not force:
+        if count != 2 :
+            raise Exception("Saving ssh upload cert in mysql seems to have failed, expected 2 insertions, but got {count}")
 
     return
 
