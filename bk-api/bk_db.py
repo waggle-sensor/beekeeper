@@ -4,6 +4,18 @@ import config
 import dateutil.parser
 import sys
 import time
+import logging
+
+
+formatter = logging.Formatter(
+    "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
+)
+handler = logging.StreamHandler(stream=sys.stdout)
+handler.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 table_fields = {}
 table_fields_index ={}
@@ -32,7 +44,7 @@ class BeekeeperDB():
             except Exception as e: # pragma: no cover
                 if count > retries:
                     raise
-                print(f'Could not connnect to database, error={e}, retry in 2 seconds', file=sys.stderr)
+                logger.error(f'Could not connnect to database, error={e}, retry in 2 seconds')
                 time.sleep(2)
                 count += 1
                 continue
@@ -42,7 +54,7 @@ class BeekeeperDB():
         return
 
 
-    def nodes_log_add(self, logData):
+    def nodes_log_add(self, logData, lock_tables=True):
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
         values_s = '%s, %s, %s, %s, %s, %s, %s'
@@ -56,11 +68,24 @@ class BeekeeperDB():
             if (not smallest_timestamp) or (effective_time < smallest_timestamp):
                 smallest_timestamp = effective_time
 
-            value_tuple =(log["node_id"], log["table_name"], log["operation"], log["field_name"], log["new_value"], log["source"], effective_time)
+            # do some sanity check
+            table_name = log["table_name"]
+            if not table_name in table_fields_index:
+                raise Exception(f"table_name {table_name} unknown")
+
+            field_name = log["field_name"]
+
+            if not field_name in table_fields_index[table_name]:
+                raise Exception(f"{field_name} not a valid field name in table {table_name}")
+
+            value_tuple =(log["node_id"], table_name, log["operation"], field_name, log["new_value"], log["source"], effective_time)
             values.append(value_tuple)
 
+        if lock_tables:
+            stmt = "LOCK TABLES `nodes_log` WRITE, `nodes_history` WRITE "
+            logger.debug(f'nodes_log_add: {stmt}')
+            self.cur.execute(stmt)
 
-        self.cur.execute("LOCK TABLES `nodes_log` WRITE")
 
         stmt = f'INSERT INTO `nodes_log` ( {fields} ) VALUES ({values_s})'
         #debug_stmt = stmt
@@ -68,23 +93,24 @@ class BeekeeperDB():
             debug_stmt = stmt
             for i in tup:
                 debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
-            print(f'debug_stmt: {debug_stmt}', flush=True)
+            logger.debug(f'debug_stmt: {debug_stmt}')
 
-        #print(f'debug_stmt: {debug_stmt}', file=sys.stderr)
+        logger.debug(f'debug_stmt: {debug_stmt}')
 
         self.cur.executemany(stmt, values )
-        #self.cur.execute("UNLOCK TABLES")
+
         self.db.commit()
 
         try:
 
-            self.replay_log(replay_from_timestamp = smallest_timestamp)
+            self.replay_log(replay_from_timestamp = smallest_timestamp, get_locks=False)
         except Exception as e:
             raise Exception("Log replay failed: "+str(e))
 
-
-        self.cur.execute("UNLOCK TABLES")
-        self.db.commit()
+        if lock_tables:
+            logger.debug(f'nodes_log_add: UNLOCK TABLES')
+            self.cur.execute("UNLOCK TABLES")
+            self.db.commit()
 
         return
 
@@ -92,7 +118,8 @@ class BeekeeperDB():
     # a) replay log from scratch/zero
     # b) replay log from effective_time (as changes)
     # replay has to merge log entries with same timestamp !
-    def replay_log(self, replay_from_timestamp=None):
+    def replay_log(self, replay_from_timestamp=None, get_locks=True):
+        logger.debug(f'replay_log')
         #fields = ['node_id', 'table_name', 'operation', 'field_name', 'new_value', 'source', 'effective_time', 'modified_time']
         #fieldIndex = {}
         #for f in range(len(fields)):
@@ -102,11 +129,14 @@ class BeekeeperDB():
 
         fields_str = ', '.join(fields)
 
-        stmt = 'LOCK TABLES `nodes_history` WRITE , `nodes_log` READ'
+        if get_locks:
+            stmt = 'LOCK TABLES `nodes_history` WRITE , `nodes_log` READ'
+            logger.debug(f'replay_log, execute: {stmt}')
        #self.cur.execute(stmt)
        # stmt = 'LOCK TABLES `nodes_log` READ'
-        self.cur.execute(stmt)
+            self.cur.execute(stmt)
         #self.db.commit()
+            logger.debug(f'got lock')
 
         if replay_from_timestamp:
             # delete all entries newer than replay_from_timestamp in history
@@ -118,7 +148,7 @@ class BeekeeperDB():
 
             debug_stmt = stmt
             debug_stmt = debug_stmt.replace("%s", f'"{replay_from_timestamp.isoformat()}"', 1)
-            print(f'debug_stmt: {debug_stmt}', flush=True)
+            logger.debug(f'debug_stmt: {debug_stmt}')
             try:
                 self.cur.execute(stmt, (replay_from_timestamp,))
                 self.db.commit()
@@ -137,20 +167,20 @@ class BeekeeperDB():
             total_count = reading_cur.execute(stmt, (replay_from_timestamp,))
             debug_stmt = stmt
             debug_stmt = debug_stmt.replace("%s", f'"{replay_from_timestamp}"', 1)
-            print(f'debug_stmt: {debug_stmt}', flush=True)
+            logger.debug(f'debug_stmt: {debug_stmt}')
         else:
             stmt = f'SELECT {fields_str} FROM `nodes_log` ORDER BY `effective_time`'
-            print(f'statement: {stmt}', flush=True)
+            logger.debug(f'statement: {stmt}')
             total_count = reading_cur.execute(stmt)
 
 
-        print(f'total_count: {total_count}')
+        logger.debug(f'total_count: {total_count}')
         while rows := reading_cur.fetchmany(size=100) :
 
 
-            print(f'______loop: {len(rows)}', flush=True)
+            #logger.debug(f'______loop: {len(rows)}')
             for row in rows:
-                print("row: "+str(row), flush=True)
+                logger.debug("row: "+str(row))
 
                 #print(rows, flush=True)
                 node_id = row[fieldIndex['node_id']]
@@ -177,10 +207,10 @@ class BeekeeperDB():
 
                 node_object[col]=value
                 node_object['timestamp'] = effective_time
-                print('node_object:')
-                print(node_object, flush=True)
+                #print('node_object:')
+                #print(node_object, flush=True)
                 nodes_last_state[node_id] = node_object
-                print("end of current row", flush=True)
+                #print("end of current row", flush=True)
 
         # now insert the last entries of each node:
         for node_id in nodes_last_state:
@@ -190,8 +220,9 @@ class BeekeeperDB():
             except Exception as e:
                         raise Exception("insert_object failed:" + str(e))
 
-        stmt = 'UNLOCK TABLES'
-        self.cur.execute(stmt)
+        if get_locks:
+            stmt = 'UNLOCK TABLES'
+            self.cur.execute(stmt)
 
 
     def get_node_state(self, node_id, timestamp=None):
@@ -200,7 +231,7 @@ class BeekeeperDB():
         fields_str = ", ".join(fields)
 
         stmt = f'SELECT {fields_str} FROM `{table_name}` WHERE `id` = %s ORDER by `timestamp` DESC LIMIT  1'
-        print(f'statement: {stmt}', flush=True)
+        logger.debug(f'statement: {stmt}')
         self.cur.execute(stmt, (node_id,))
         row = self.cur.fetchone()
         if not row:
@@ -215,6 +246,96 @@ class BeekeeperDB():
             raise Exception("Result dict empty, should not happen")
 
         return result
+
+    def get_node_keypair(self, node_id):
+
+        return self.get_node_credentials_all(node_id, "_beekeeper_")
+
+
+    def set_node_keypair(self, node_id, creds):
+
+        #creds["id"] = node_id
+
+        #ssh_key_private = creds["ssh_key_private"]
+        #ssh_key_public = creds["ssh_key_public"]
+        for field in [ "ssh_key_private", "ssh_key_public"  ]:
+            if not field in creds:
+                raise Exception(f"Field {field} missing.")
+            if not creds[field]:
+                raise Exception(f"Field {field} empty.")
+
+        count = self.set_node_credentials(node_id, "_beekeeper_", creds)
+
+        if count != 2:
+            raise Exception(f"Insertions failed")
+
+        return
+
+    def set_node_credentials(self, node_id, namespace, values, force=False):
+
+        count = 0
+        for field in values:
+            load_obj = {"id": node_id, "namespace": namespace, "name": field, "value": values[field] }
+            count += self.insert_object("node_credentials", load_obj, force=force)
+
+        return count
+
+
+    def get_node_credentials_all(self, node_id, namespace):
+
+        stmt = f'SELECT name, value FROM `node_credentials` WHERE `id` = %s AND `namespace` = %s'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt, (node_id,namespace))
+        rows = self.cur.fetchall()
+        if not rows:
+            #raise Exception("Node not found")
+            return None
+
+        return_obj = {}
+        for row in rows:
+            return_obj[row[0]] = row[1]
+
+        return return_obj
+
+    def get_node_credential(self, node_id, namespace, name):
+
+        stmt = f'SELECT value FROM `node_credentials` WHERE `id` = %s AND `namespace` = %s AND `name` = %s'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt, (node_id,namespace, name))
+        row = self.cur.fetchone()
+        if not row:
+            #raise Exception("Node not found")
+            return None
+
+        return row[0]
+
+
+    def get_beehive(self, id):
+        result = self.get_object("beehives", "id", id)
+        if not result:
+            return None
+
+        if not isinstance(result, dict):
+            raise Exception("get_object did not return a dict")
+
+
+        for user_visible_field in ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]:
+            col_name = user_visible_field.replace("-", "_ca_")
+            result[user_visible_field] = result[col_name]
+            del result[col_name]
+
+        for user_visible_field in ["key-type", "key-type-args"]:
+            col_name = user_visible_field.replace("-", "_")
+            result[user_visible_field] = result[col_name]
+            del result[col_name]
+
+
+
+        return result
+
+
 
 
     def list_latest_state(self):
@@ -241,18 +362,122 @@ class BeekeeperDB():
         return results
 
 
-    def insert_object(self, table_name, row_object):
+    def update_object_field(self, table_name, column, value, filter_key, filter_value):
+
+        stmt = f"UPDATE {table_name} SET {column} = %s WHERE {filter_key} = %s"
+        values = (value, filter_value,)
+        debug_stmt = stmt
+        for i in values:
+            debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
+        logger.debug(f'(update_object_field) statement: {debug_stmt}')
+
+        self.cur.execute(stmt, (*values, ))
+        self.db.commit()
+        return self.cur.rowcount
+
+    # updates is a dict {column: value}
+    def update_object_fields(self, table_name, updates, filter_key, filter_value):
+
+        setter = []
+        values = []
+        for key in updates:
+            setter.append(f"{key} = %s ")
+            #logger.debug(f"pair: {key} {updates[key]}")
+            values.append(updates[key])
+
+        setter_str = ", ".join(setter)
+        #logger.debug(f"setter_str: {setter_str}")
+
+        stmt = f"UPDATE {table_name} SET {setter_str} WHERE {filter_key} = %s"
+        values.append(filter_value)
+        debug_stmt = stmt
+        for i in values:
+            debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
+        logger.debug(f'(update_object_fields) statement: {debug_stmt}')
+
+        self.cur.execute(stmt, (*values, ))
+        self.db.commit()
+
+        return self.cur.rowcount
+
+    def get_object(self, table_name, key, value):
+
+        fields = table_fields['beehives']
+        fields_str = ", ".join(fields)
+
+        stmt = f'SELECT {fields_str} FROM `{table_name}` WHERE `{key}` = %s'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt, (value,))
+        row = self.cur.fetchone()
+        if not row:
+            #raise Exception("Node not found")
+            return None
+
+
+
+        return dict(zip(fields, row))
+
+    def get_objects(self, table_name, fields=None):
+        if not fields:
+            fields = table_fields['beehives']
+
+        fields_str = ", ".join(fields)
+
+        stmt = f'SELECT {fields_str} FROM `{table_name}`'
+        logger.debug(f'statement: {stmt}')
+
+        self.cur.execute(stmt)
+        rows = self.cur.fetchall()
+
+        result = []
+        for row in rows:
+            result.append(dict(zip(fields, row)))
+
+        return result
+
+
+    def insert_object(self, table_name, row_object, force=False):
         fields_str , values, replacement_str = self.dict2mysql(row_object)
 
         stmt = f'INSERT INTO {table_name} ({fields_str}) VALUES ({replacement_str})'
+        if force:
+            stmt = f'INSERT INTO {table_name} ({fields_str}) VALUES ({replacement_str}) ON DUPLICATE KEY UPDATE '
+            for key in row_object:
+                stmt += f" {key}=%s,"
+                values.append(row_object[key])
+            stmt = stmt[:-1] # remove last comma
 
         debug_stmt = stmt
         for i in values:
             debug_stmt = debug_stmt.replace("%s", f'"{i}"', 1)
 
+
+
         print(f'debug_stmt: {debug_stmt}', flush=True)
         self.cur.execute(stmt, (*values, ))
         self.db.commit()
+
+        if (not force) and self.cur.rowcount != 1:
+            raise Exception(f"insertion went wrong (self.cur.rowcount: {self.cur.rowcount})")
+
+        return self.cur.rowcount
+
+    # simple delete based on WHERE KEY=VALUE
+    def delete_object(self, table_name, key, value):
+
+        stmt = f"DELETE FROM `{table_name}` WHERE {key} = %s ;"
+
+        debug_stmt = stmt.replace("%s", f"'{value}'", 1)
+
+        logger.debug(f'debug_stmt: {debug_stmt}')
+        try:
+            self.cur.execute(stmt, (value,))
+            self.db.commit()
+        except Exception as e:
+            raise Exception(f"Error deleting object: {str(e)}")
+
+        return self.cur.rowcount
 
 
     def dict2mysql(self, obj):
@@ -273,7 +498,7 @@ class BeekeeperDB():
 
     def truncate_table(self, table_name):
         stmt = f'TRUNCATE TABLE `{table_name}`'
-        print(f'statement: {stmt}')
+        logger.debug(f'statement: {stmt}')
         self.cur.execute(stmt)
 
 

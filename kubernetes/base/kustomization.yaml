@@ -7,15 +7,11 @@ resources:
   - beekeeper.configmap.yaml
 
   ### beekeeper API
-  #- beekeeper-api.configmap.yaml # This ConfigMaps has to be created after the first start of sshd
+  - beekeeper-api.configmap.yaml
   - beekeeper-api.deployment.yaml
-  - beekeeper-api.secret.yaml
+  #- beekeeper-api.secret.yaml
   - beekeeper-api.service.yaml
-
-  ### beekeeper register
-  - beekeeper-register.deployment.yaml
-  - beekeeper-register.configmap.yaml
-  - beekeeper-register.service.yaml
+  - beekeeper-api.ingress.yaml
 
   ### beekeeper sshd
   - beekeeper-sshd.deployment.yaml

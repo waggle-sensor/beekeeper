@@ -1,8 +1,8 @@
 #!/bin/bash
 
 
-if [ -z "${KEY_GEN_ARGS}" ] ; then
-    echo "Env variable KEY_GEN_ARGS not defined"
+if [ -z "${KEY_GEN_TYPE}" ] ; then
+    echo "Env variable KEY_GEN_TYPE not defined"
     exit 1
 fi
 
@@ -21,4 +21,4 @@ set -x
 mkdir -p /tmp/new_reg_keypair
 rm -f /tmp/new_reg_keypair/*
 
-ssh-keygen -f /tmp/new_reg_keypair/registration ${KEY_GEN_ARGS} -N ''
+ssh-keygen -f /tmp/new_reg_keypair/registration -t ${KEY_GEN_TYPE} ${KEY_GEN_ARGS} -N ''

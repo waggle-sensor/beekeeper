@@ -12,12 +12,23 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
+      - name: Create keys
+        run: ./create-keys.sh init --nopassword
+      - name: Create reg cert
+        run: ./create-keys.sh cert untilforever forever
       - name: Build docker images
         run: docker-compose build
       - name: Start docker-compose
         run: docker-compose up -d
       - name: Wait for docker-compose services
-        run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper_"  ] ; do echo waiting... ; sleep 2 ; done
+        run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper API_"  ] ; do echo waiting... ; sleep 2 ; done
+      - name: Wait for reverse ssh-tunnel
+        run: |
+          until docker exec -i beekeeper_bk-sshd_1 test -e /home_dirs/node-0000000000000001/rtun.sock
+          do
+            echo waiting for /home_dirs/node-0000000000000001/rtun.sock
+            sleep 1
+          done
       - name: Unit tests
         run: ./unit-tests.sh
       #- name: Test docker images run

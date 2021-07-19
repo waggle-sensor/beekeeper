@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beekeeper-config
+data:
+  KEY_GEN_TYPE: "ed25519" # or rsa
+  KEY_GEN_ARGS: ""   # e.g. "-b 4096" for type rsa

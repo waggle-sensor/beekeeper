@@ -22,7 +22,6 @@ spec:
         volumeMounts:
           - name: ca-secret
             mountPath: "/usr/lib/waggle/certca/"
-            #mountPath: "/usr/lib/waggle/certca/"
             readOnly: true
           - name: server-secret
             mountPath: "/usr/lib/waggle/bk-server/"
@@ -41,6 +40,11 @@ spec:
             subPath: admin.pem.pub
             readOnly: true
         env:
+        - name: KEY_GEN_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: beekeeper-config
+              key: KEY_GEN_TYPE
         - name: KEY_GEN_ARGS
           valueFrom:
             configMapKeyRef:
@@ -72,16 +76,6 @@ spec:
 
       restartPolicy: Always
       volumes:
-      - name: ca-secret
-        secret:
-          secretName: beekeeper-sshd-ca-secret
-          defaultMode: 0400
-          optional: true  # this container creates ssh files if missing
-      - name: server-secret
-        secret:
-          secretName: beekeeper-sshd-server-secret
-          defaultMode: 0400
-          optional: true # this container creates ssh files if missing
       - name: public-registration-keys
         secret:
           secretName: beekeeper-sshd-public-registration-keys
@@ -89,10 +83,20 @@ spec:
         configMap:
           name: beekeeper-sshd-config
       - name: authorized-keys
-        configMap:
+        secret:
           defaultMode: 0400
-          name: beekeeper-sshd-authorized-keys-config
-          optional: true
+          secretName: beekeeper-sshd-authorized-keys-secret
 
 
+      - name: server-secret
+        secret:
+          secretName: beekeeper-sshd-server-secret
+          defaultMode: 0400
+      - name: ca-secret
+        secret:
+          secretName: beekeeper-sshd-ca-secret
+          defaultMode: 0400
+          items:
+          - key: beekeeper_ca_key.pub
+            path: beekeeper_ca_key.pub
 

@@ -35,34 +35,17 @@ logger.addHandler(handler)
 USER_HOME_DIR = "/home_dirs"
 
 BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
-BEEKEEPER_REGISTER_API = os.getenv("BEEKEEPER_REGISTER_API" ,"http://bk-register:80")
 
 
 
 
 def setup_app():
 
-    while True:
-        # wait for bk-register (because bk-register loads some test data first into DB)
-        try:
-            bk_api_result = requests.get(f'{BEEKEEPER_REGISTER_API}').content
-        except Exception as e:
-            logger.warning(f"Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached, requests.get returned: {str(e)}")
-            time.sleep(2)
-            continue
-
-        result_message = bk_api_result.decode("utf-8").strip()
-        if 'Beekeeper Registration Server' != result_message:
-            logger.warning("Error: Beekeeper Registration Server ({BEEKEEPER_REGISTER_API}) cannot be reached: \"{result_message}\"")
-            time.sleep(2)
-            continue
-
-        break
 
 
     while True:
         try:
-            bk_api_result = requests.get(f'{BEEKEEPER_DB_API}').content
+            bk_api_result = requests.get(f'{BEEKEEPER_DB_API}', timeout=3).content
         except Exception as e:
             logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}")
             time.sleep(2)
@@ -70,8 +53,9 @@ def setup_app():
 
         #print(bk_api_result)
         result_message = bk_api_result.decode("utf-8").strip()   # bk_api_result.decode("utf-8").strip()
-        if 'SAGE Beekeeper' != result_message:
-            logger.warning("Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\"")
+        expected_response = 'SAGE Beekeeper API'
+        if expected_response != result_message:
+            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\", expected  \"{expected_response}\"")
             time.sleep(2)
             continue
 
@@ -83,7 +67,7 @@ def setup_app():
 
 
     try:
-        bk_api_response = requests.get(f'{BEEKEEPER_DB_API}/state')
+        bk_api_response = requests.get(f'{BEEKEEPER_DB_API}/state', timeout=3)
     except Exception as e:
         logger.Error(f"Beekeeper DB API ({BEEKEEPER_DB_API}/state) cannot be reached: {str(e)}")
         sys.exit(1)
@@ -274,15 +258,23 @@ def adduser():
         logger.error(e)
         return "Error: unable to add user [{}]".format(user), 500
 
-    try:
+    #try:
         # save the user's keys
-        priv_key = flask.request.values.get("private_key")
-        pub_key = flask.request.values.get("public_key")
-        cert = flask.request.values.get("certificate")
-        _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
-    except Exception as e:
-        logger.warning("Warning: Unable to save user [{}] keys".format(user))
-        logger.debug(e)
+    #    priv_key = flask.request.values.get("private_key")
+    #    pub_key = flask.request.values.get("public_key")
+    #    cert = flask.request.values.get("certificate")
+    #except Exception as e:
+    #    logger.error(f"could not get data: {str(e)}")
+    #    return f"Warning: Unable to save user [{user}] keys -- ({str(e)})", 500
+
+    #try:
+
+    #    _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
+    #except Exception as e:
+        #raise Exception("Could not save keys: "+str(e))
+    #    logger.warning("Warning: Unable to save user [{}] keys".format(user))
+    #    logger.error(f"_save_keys returned: {str(e)}")
+    #    return f"Warning: Unable to save user [{user}] keys -- ({str(e)})", 500
 
     return "User [{}] added".format(user)
 

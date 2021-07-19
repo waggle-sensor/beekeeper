@@ -39,13 +39,45 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     PRIMARY KEY(`id`, `timestamp`)
 );
 
+/*
+CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
+#    `id`                    VARCHAR(64),
+#    `ssh_key_private`       TEXT,
+#    `ssh_key_public`        TEXT,
+#    PRIMARY KEY(`id`)
+#);
+*/
+
+CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
+    `id`                    VARCHAR(64),
+    `namespace`             VARCHAR(64), /* "_beekeeper_" or a beehive id */
+    `name`                  VARCHAR(64),
+    `value`                 TEXT,
+    PRIMARY KEY(`id`, `namespace`, `name`)
+);
+
+
+
+
 
 
 CREATE TABLE IF NOT EXISTS Beekeeper.beehives (
     `id`                  VARCHAR(64),
-    `url`                 VARCHAR(256),
+    `api`                 VARCHAR(256),
+    `key_type`            VARCHAR(32),
+    `key_type_args`       VARCHAR(32),
+    `rmq_host`            VARCHAR(256),
+    `rmq_port`            INT,
+    `upload_host`         VARCHAR(256),
+    `upload_port`         INT,
+    `tls_ca_key`          TEXT,
+    `tls_ca_cert`         TEXT,
+    `ssh_ca_key`          TEXT,
+    `ssh_ca_pub`          TEXT,
+    `ssh_ca_cert`         TEXT,
     PRIMARY KEY(`id`)
 );
+
 
 CREATE TABLE IF NOT EXISTS Beekeeper.sensor_instances (
     `node_id`               VARCHAR(16) NOT NULL,

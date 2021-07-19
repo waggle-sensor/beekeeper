@@ -1,53 +1,49 @@
 version: '3.7'
 services:
 
-  bk-register:
-    image: waggle/beekeeper-register
-    build: bk-register
-    restart: always
-    depends_on:
-      - bk-api
-    init: true
-    ports:
-      - "127.0.0.1:24181:80"
-    environment:
-      KEY_GEN_ARGS: ${KEY_GEN_ARGS}
-      # see .env
-    volumes:
-      - "bk-secrets:/usr/lib/waggle/:ro"
 
   bk-sshd:
-    image: waggle/beekeeper-sshd
+    image: waggle/beekeeper-sshd:latest
     build: bk-sshd
     restart: always
-    depends_on:
-      - bk-register
+    #depends_on:
+    #  - bk-register
     ports:
       - "127.0.0.1:20022:22"
+      - "127.0.0.1:2201:2201"
       - "127.0.0.1:24182:80"
     environment:
         # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
+      KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
-      - "bk-secrets:/usr/lib/waggle/:rw"
+      - ${PWD}/beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
+      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
+      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
 
   bk-api:
-    image: waggle/beekeeper-api
+    image: waggle/beekeeper-api:latest
     build: bk-api
     restart: always
     depends_on:
       - db
-    env_file: mysql.env
-    #volumes:
-    #  - ${PWD}/bk-api:/usr/src/app
+    env_file:
+      - mysql.env
+      - .env
+    volumes:
+      - ${PWD}/beekeeper-keys/admin/admin.pem:/config/admin-key/admin.pem:ro
+      #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/nodes.pem:ro
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem:/config/nodes/nodes.pem:ro
+      - ${PWD}/test-data:/test-data/:ro
+      - ${PWD}/bk-api:/usr/src/app     # for easier development
+      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
+      - ${PWD}/beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
     ports:
       - "5000:5000"  # for testing purposes
-    #environment:
-    #  FLASK_APP: bk-api.py
-    #  FLASK_ENV: production
+
 
 
   db:
@@ -55,11 +51,23 @@ services:
     env_file: mysql.env
     volumes:
       - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
-      #- beekeeper-db:/var/lib/mysql
+      - beekeeper-db:/var/lib/mysql
+
+  node1:
+    image: waggle/wes-minimal
+    volumes:
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
+      # for /etc/ssh/ssh_known_hosts:
+      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
+      # so beekeeper can ssh into it:
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
+
 
 volumes:
   #bk-homedirs:
-  bk-secrets:
+  beekeeper-db:
+  #bk-secrets:
   #  external:
   #    name: beekeeper-config_bk-secrets
 

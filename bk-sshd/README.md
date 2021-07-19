@@ -1,12 +1,7 @@
 
 
-Copy admin key for ansible
-
-```bash
-docker cp beekeeper_bk-sshd_1:/root/keys/admin.pem .
-```
-
 Admin ssh into beekeeper sshd container
+Note: Use port 2201 internally of docker networkfor admin
 ```bash
 ssh -i ./admin.pem -o "IdentitiesOnly=yes" -p 20022 root@localhost
 ```
