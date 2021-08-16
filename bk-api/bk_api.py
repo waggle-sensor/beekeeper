@@ -505,24 +505,57 @@ def node_ssh(node_id, command, input_str=None):
     return (result_stdout_str ,result_stderr_str)
 
 
+def node_ssh_with_logging(node_id, command, input_str=None):
+    result_stdout, result_stderr = node_ssh(node_id, command, input_str=input_str)
+    logger.debug(result_stdout)
+    if result_stderr:
+        logger.error(result_stderr)
+
 
 # kube_resource: a dict
 def kubectl_apply(node_id, kube_resource):
-
     try:
-        result_stdout_str ,result_stderr_str = node_ssh(node_id, "kubectl apply -f -", input_str= yaml.dump(kube_resource))
+        result_stdout_str ,result_stderr_str = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
     if (not "unchanged" in result_stdout_str) and (not "created" in result_stdout_str)and (not "configured" in result_stdout_str):
          raise Exception(f"result_stdout_str:{result_stdout_str} result_stderr_str:{result_stderr_str}")
 
-    return result_stdout_str ,result_stderr_str
+    return result_stdout_str, result_stderr_str
 
+
+def kubectl_apply_with_logging(node_id, kube_resource):
+    result_stdout, result_stderr = kubectl_apply(node_id, kube_resource)
+    logger.debug(result_stdout)
+    if result_stderr:
+        logger.error(result_stderr)
+
+
+def kube_configmap(name, data):
+    return {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": name,
+        },
+        "data": data,
+    }
+
+
+def kube_secret(name, data):
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {
+            "name": name,
+        },
+        "type": "Opaque",
+        "data": {k: b64string_encode(v) for k, v in data.items()},
+    }
 
 
 def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
-
     logger.debug("start assign_beehive")
 
     try:
@@ -531,19 +564,15 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     except Exception as e:
         raise Exception(f"get_beehive returned: {str(e)}")
 
-
     if not beehive_obj:
         raise Exception(f"Beehive {assign_beehive} unknown" )
 
     if not isinstance(beehive_obj, dict):
         raise Exception(f"beehive_obj is not a dict")
 
-
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
-
-
 
     try:
         create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force )
@@ -568,47 +597,22 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     ssh_upload_cert = node_creds["ssh_upload_cert"]
 
     # create and push secret for upload-ssh-key
-
-    upload_secret = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-            {"name": "wes-beehive-upload-ssh-key"},
-        "type": "Opaque",
-        "data":{
-            "ssh-key": b64string_encode(ssh_key_private),
-            "ssh-key.pub": b64string_encode(ssh_key_public),
-            "ssh-key-cert.pub": b64string_encode(ssh_upload_cert)
-            }
-    }
-
-    result_stdout, result_stderr = kubectl_apply(node_id, upload_secret)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
+    upload_secret = kube_secret("wes-beehive-upload-ssh-key", {
+        "ssh-key": ssh_key_private,
+        "ssh-key.pub": ssh_key_public,
+        "ssh-key-cert.pub": ssh_upload_cert,
+    })
+    kubectl_apply_with_logging(node_id, upload_secret)
 
     # create and upload tls secret
-
-    tls_cert = node_creds["tls_cert"]
-    tls_key  = node_creds["tls_key"]
-    tls_secret = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata":
-            {"name": "wes-beehive-rabbitmq-tls"},
-        "type": "Opaque",
-        "data":{
-            "cert.pem": b64string_encode(tls_cert),
-            "key.pem": b64string_encode(tls_key)
-            }
-    }
-
-    result_stdout, result_stderr = kubectl_apply(node_id, tls_secret)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
+    tls_secret = kube_secret("wes-beehive-rabbitmq-tls", {
+        "cert.pem": node_creds["tls_cert"],
+        "key.pem": node_creds["tls_key"],
+    })
+    kubectl_apply_with_logging(node_id, tls_secret)
 
     ####################
+    # waggle id / host / port config map
 
     for key in ["rmq_host", "rmq_port", "upload_host", "upload_port"]:
         if not key in beehive_obj:
@@ -619,26 +623,14 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     upload_host = beehive_obj["upload_host"]
     upload_port = beehive_obj["upload_port"]
 
-
-    waggle_ConfigMap = {
-        "apiVersion": "v1",
-        "kind": "ConfigMap",
-        "metadata": {
-            "name": "waggle-config"
-        },
-        "data": {
-            "WAGGLE_NODE_ID": node_id.lower(),
-            "WAGGLE_BEEHIVE_RABBITMQ_HOST": rmq_host,
-            "WAGGLE_BEEHIVE_RABBITMQ_PORT": str(rmq_port),
-            "WAGGLE_BEEHIVE_UPLOAD_HOST": upload_host,
-            "WAGGLE_BEEHIVE_UPLOAD_PORT": str(upload_port)
-        }
-    }
-
-    result_stdout, result_stderr = kubectl_apply(node_id, waggle_ConfigMap)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
+    waggle_ConfigMap = kube_configmap("waggle-config", {
+        "WAGGLE_NODE_ID": node_id.lower(),
+        "WAGGLE_BEEHIVE_RABBITMQ_HOST": rmq_host,
+        "WAGGLE_BEEHIVE_RABBITMQ_PORT": str(rmq_port),
+        "WAGGLE_BEEHIVE_UPLOAD_HOST": upload_host,
+        "WAGGLE_BEEHIVE_UPLOAD_PORT": str(upload_port),
+    })
+    kubectl_apply_with_logging(node_id, waggle_ConfigMap)
 
     ###########################
     # beehive-ssh-ca configmap
@@ -650,50 +642,21 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
 
     ca_ssh_pub = beehive_obj["ssh-pub"]
     ca_ssh_cert = beehive_obj["ssh-cert"]
-
     ca_tls_cert = beehive_obj["tls-cert"]
 
-
-    beehive_ssh_ca_ConfigMap = {
-        "apiVersion": "v1",
-        "kind": "ConfigMap",
-        "metadata": {
-            "name": "beehive-ssh-ca"
-        },
-        "data" : {
-            "ca.pub":  ca_ssh_pub  ,
-            "ca-cert.pub":  ca_ssh_cert
-        }
-    }
-
-    result_stdout, result_stderr = kubectl_apply(node_id, beehive_ssh_ca_ConfigMap)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
+    beehive_ssh_ca_ConfigMap = kube_configmap("beehive-ssh-ca", {
+        "ca.pub": ca_ssh_pub,
+        "ca-cert.pub": ca_ssh_cert,
+    })
+    kubectl_apply_with_logging(node_id, beehive_ssh_ca_ConfigMap)
 
     ###########################
     # beehive-tls-ca configmap
 
-
-
-
-
-    beehive_tls_ca_ConfigMap = {
-        "apiVersion": "v1",
-        "kind": "ConfigMap",
-        "metadata": {
-            "name": "beehive-tls-ca"
-        },
-        "data" : {
-            "cacert.pem":  ca_tls_cert
-
-        }
-    }
-
-    result_stdout, result_stderr = kubectl_apply(node_id, beehive_ssh_ca_ConfigMap)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
+    beehive_tls_ca_ConfigMap = kube_configmap("beehive-tls-ca", {
+        "cacert.pem": ca_tls_cert,
+    })
+    kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
 
     deploy_script= \
 """\
@@ -717,22 +680,15 @@ cd /opt/waggle-edge-stack/kubernetes
 ./deploy-stack.sh skip-env
 """
 
-    result_stdout, result_stderr = node_ssh(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
-
-    result_stdout, result_stderr =  node_ssh(node_id, "sh /tmp/deploy.sh", input_str=deploy_script)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
-
-
+    node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
+    node_ssh_with_logging(node_id, "sh /tmp/deploy.sh")
 
     if this_debug:
-        return {"waggle_ConfigMap": waggle_ConfigMap ,
-                 "tls_secret":tls_secret,
-                 "upload_secret": upload_secret}
+        return {
+            "waggle_ConfigMap": waggle_ConfigMap,
+            "tls_secret":tls_secret,
+            "upload_secret": upload_secret,
+        }
 
         #node_creds["tls_result_stdout"] = result_stdout
         #node_creds["tls_result_stderr"] = result_stderr
