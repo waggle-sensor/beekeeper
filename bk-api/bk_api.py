@@ -45,6 +45,8 @@ from sshkeygen import SSHKeyGen, run_command, run_command_communicate
 import traceback
 from werkzeug.utils import secure_filename
 
+import linecache
+
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -77,6 +79,18 @@ if not KEY_GEN_TYPE:
 
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
+
+
+def ShowException():
+    exc_type, exc_obj, tb = sys.exc_info()
+    f = tb.tb_frame
+    lineno = tb.tb_lineno
+    filename = f.f_code.co_filename
+    linecache.checkcache(filename)
+    line = linecache.getline(filename, lineno, f.f_globals)
+    return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
+
+
 
 
 
@@ -489,9 +503,14 @@ def node_ssh(node_id, command, input_str=None):
 
     ssh_cmd_str = " ".join(ssh_cmd)
     logger.debug(ssh_cmd_str)
+    result_stdout = ""
+    result_stderr = ""
+    try:
 
+        result_stdout ,result_stderr = run_command_communicate(ssh_cmd, input_str = input_str)
 
-    result_stdout ,result_stderr = run_command_communicate(ssh_cmd, input_str = input_str)
+    except Exception as e:
+        raise Exception(f"run_command_communicate: {str(e)}")
 
     result_stdout_str = ""
     result_stderr_str = ""
@@ -506,10 +525,14 @@ def node_ssh(node_id, command, input_str=None):
 
 
 def node_ssh_with_logging(node_id, command, input_str=None):
-    result_stdout, result_stderr = node_ssh(node_id, command, input_str=input_str)
-    logger.debug(result_stdout)
+    try:
+        result_stdout, result_stderr = node_ssh(node_id, command, input_str=input_str)
+    except Exception as e:
+        raise Exception(f"node_ssh failed: {str(e)}")
+
+    logger.debug("Stdout from node: "+result_stdout)
     if result_stderr:
-        logger.error(result_stderr)
+        logger.error("Stderr from node: "+result_stderr)
 
 
 # kube_resource: a dict
@@ -526,11 +549,13 @@ def kubectl_apply(node_id, kube_resource):
 
 
 def kubectl_apply_with_logging(node_id, kube_resource):
-    result_stdout, result_stderr = kubectl_apply(node_id, kube_resource)
-    logger.debug(result_stdout)
-    if result_stderr:
-        logger.error(result_stderr)
-
+    try:
+        result_stdout, result_stderr = kubectl_apply(node_id, kube_resource)
+        logger.debug(result_stdout)
+        if result_stderr:
+            logger.error(result_stderr)
+    except Exception as e:
+        raise Exception(f"(kubectl_apply_with_logging) {str(e)}")
 
 def kube_configmap(name, data):
     return {
@@ -544,16 +569,18 @@ def kube_configmap(name, data):
 
 
 def kube_secret(name, data):
-    return {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "metadata": {
-            "name": name,
-        },
-        "type": "Opaque",
-        "data": {k: b64string_encode(v) for k, v in data.items()},
-    }
-
+    try:
+        return {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": name,
+            },
+            "type": "Opaque",
+            "data": {k: b64string_encode(v) for k, v in data.items()},
+        }
+    except Exception as e:
+        raise Exception(f"(kube_secret) {str(e)}")
 
 def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     logger.debug("start assign_beehive")
@@ -574,11 +601,13 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
 
+    logger.debug("calling create_ssh_upload_cert")
     try:
         create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force )
     except Exception as e:
         raise Exception(f"create_ssh_upload_cert failed: {type(e).__name__} {str(e)}")
 
+    logger.debug("calling create_tls_cert_for_node")
     try:
         create_tls_cert_for_node(bee_db, node_id, beehive_obj, force=force)
     except Exception as e:
@@ -586,14 +615,28 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
 
     node_keypair = bee_db.get_node_keypair(node_id)
 
+    if not "ssh_key_private" in node_keypair:
+        raise Exception(f"ssh_key_private field missing in node_keypair")
+
+    if not "ssh_key_public" in node_keypair:
+        raise Exception(f"ssh_key_public field missing in node_keypair")
+
     ssh_key_private = node_keypair["ssh_key_private"]
     ssh_key_public = node_keypair["ssh_key_public"]
 
+    logger.debug("calling get_node_credentials_all")
     try:
         node_creds = bee_db.get_node_credentials_all(node_id, beehive_id)
     except Exception as e:
         raise Exception(f"get_node_credentials_all failed: {type(e).__name__} {str(e)}")
 
+    if not "tls_cert" in node_creds:
+        raise Exception(f"tls_cert field missing in node_creds")
+    if not "tls_key" in node_creds:
+        raise Exception(f"tls_key field missing in node_creds")
+
+    if not "ssh_upload_cert" in node_creds:
+        raise Exception(f"ssh_upload_cert field missing in node_creds")
     ssh_upload_cert = node_creds["ssh_upload_cert"]
 
     # create and push secret for upload-ssh-key
@@ -611,6 +654,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     })
     kubectl_apply_with_logging(node_id, tls_secret)
 
+    #return {"result": "A"}
     ####################
     # waggle id / host / port config map
 
@@ -643,7 +687,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     ca_ssh_pub = beehive_obj["ssh-pub"]
     ca_ssh_cert = beehive_obj["ssh-cert"]
     ca_tls_cert = beehive_obj["tls-cert"]
-
+    #return {"result": "B"}
     beehive_ssh_ca_ConfigMap = kube_configmap("beehive-ssh-ca", {
         "ca.pub": ca_ssh_pub,
         "ca-cert.pub": ca_ssh_cert,
@@ -679,9 +723,12 @@ cd /opt/waggle-edge-stack/kubernetes
 
 ./deploy-stack.sh skip-env
 """
-
-    node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
-    node_ssh_with_logging(node_id, "sh /tmp/deploy.sh")
+    #return {"result": "C"}
+    try:
+        node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
+        node_ssh_with_logging(node_id, "sh /tmp/deploy.sh")
+    except Exception as e:
+        raise Exception(f"node_ssh_with_logging failed: {str(e)}")
 
     if this_debug:
         return {
@@ -850,11 +897,13 @@ class Node(MethodView):
         force = request.args.get('force', "false") in ["true", "1"]
 
         if "assign_beehive" in postData:
+            beehive = postData["assign_beehive"]
+
             try:
-                result = node_assign_beehive(node_id, postData["assign_beehive"], this_debug, force=force)
+                result = node_assign_beehive(node_id, beehive, this_debug, force=force)
             except Exception as e:
                 logger.error(e)
-                raise ErrorResponse(f"node_assign_beehive retruned: { type(e).__name__ }: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(f"node_assign_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 
