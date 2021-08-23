@@ -697,7 +697,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     ###########################
     # beehive-tls-ca configmap
 
-    beehive_tls_ca_ConfigMap = kube_configmap("beehive-tls-ca", {
+    beehive_tls_ca_ConfigMap = kube_configmap("beehive-ca-certificate", {
         "cacert.pem": ca_tls_cert,
     })
     kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
