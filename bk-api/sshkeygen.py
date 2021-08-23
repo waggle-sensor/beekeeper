@@ -31,13 +31,16 @@ logger.addHandler(handler)
 def run_command_communicate(command, input_str):
     import subprocess
 
-    p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    except Exception as e:
+        raise Exception(f"subprocess.Popen: {str(e)}")
 
     # returns output_stdout,output_stderr
     if input_str:
         return p.communicate(input=input_str.encode())
 
-    p.communicate()
+    return p.communicate()
 
 
 def run_command(cmd, return_stdout=False):
