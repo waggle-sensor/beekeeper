@@ -91,7 +91,13 @@ cp known_hosts register.pem register.pem-cert.pub ~/git/waggle-edge-stack/ansibl
 
 ansible will copy these files if detected
 
+# create Certs for node
 
+Got to the directory that contains your `beekeeper-keys` folder. Copy `create-keys.sh`, then create the certificate file, for example:
+```
+cp ~/git/beekeeper/create-keys.sh .
+./create-keys.sh cert until20220530 +20220530
+```
 
 
 
