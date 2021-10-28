@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: beekeeper-api
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/rewrite-target: /state
+  #annotations:
+    #kubernetes.io/ingress.class: traefik
+    #traefik.ingress.kubernetes.io/rewrite-target: /state
 spec:
   rules:
   #- host: <use overlay to defined this>

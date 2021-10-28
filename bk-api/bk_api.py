@@ -1176,6 +1176,7 @@ class Registration(MethodView):
 
 app = Flask(__name__)
 CORS(app)
+app.logger.setLevel(logging.DEBUG)
 app.config["PROPAGATE_EXCEPTIONS"] = True
 #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
