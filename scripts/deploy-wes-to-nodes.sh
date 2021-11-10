@@ -12,7 +12,7 @@ fatal() {
 }
 
 # check kubectl
-if [[ $(kubectl get nodes -o name)_ != "node/beehive-beekeeper_" ]] ; then
+if [[ $(kubectl get nodes -o name | grep node1)_ != "node/node1_" ]] ; then
     echo "kubectl could not connect"
     exit
 fi
@@ -31,7 +31,7 @@ if [[ $(curl -s "${beekeeper_api}:5000/")_ != "SAGE Beekeeper API_" ]] ; then
 
     echo "Could not reach Beekeeper API"
     echo "if on your laptop, use port-forwarding:"
-    echo "> kubectl port-forward service/beekeeper-api 5000:5000"
+    echo "> kubectl port-forward service/beekeeper-api -n beekeeper 5000:5000"
     exit 1
 fi
 
@@ -58,10 +58,10 @@ for nodeID in $*; do
     fi
 
     # (this uses kubectl right now)
-    while ! ./register-node.sh "${nodeID_lower}"; do
-        echo "failed to register node... will retry."
-        sleep 3
-    done
+    #while ! ./register-node.sh "${nodeID_lower}"; do
+    #    echo "failed to register node... will retry."
+    #    sleep 3
+    #done
 
 
     cd ${BASE_DIR}
