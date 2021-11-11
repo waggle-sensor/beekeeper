@@ -20,6 +20,8 @@ logger.addHandler(handler)
 table_fields = {}
 table_fields_index ={}
 
+class ObjectNotFound(Exception):
+    pass
 
 class BeekeeperDB():
     def __init__ ( self , retries=60) :
@@ -53,8 +55,11 @@ class BeekeeperDB():
         self.cur=self.db.cursor()
         return
 
+    def close(self):
+        self.cur.close()
+        self.db.close()
 
-    def nodes_log_add(self, logData, lock_tables=True):
+    def nodes_log_add(self, logData, lock_tables=True, lock_requested_by=""):
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
         values_s = '%s, %s, %s, %s, %s, %s, %s'
@@ -83,9 +88,9 @@ class BeekeeperDB():
 
         if lock_tables:
             stmt = "LOCK TABLES `nodes_log` WRITE, `nodes_history` WRITE "
-            logger.debug(f'nodes_log_add: {stmt}')
+            logger.debug(f'(nodes_log_add) {stmt} (by {lock_requested_by})')
             self.cur.execute(stmt)
-
+            logger.debug(f'(nodes_log_add) got lock')
 
         stmt = f'INSERT INTO `nodes_log` ( {fields} ) VALUES ({values_s})'
         #debug_stmt = stmt
@@ -105,13 +110,17 @@ class BeekeeperDB():
 
             self.replay_log(replay_from_timestamp = smallest_timestamp, get_locks=False)
         except Exception as e:
+            if lock_tables:
+                logger.debug(f'nodes_log_add exists with exception: UNLOCK TABLES')
+                self.cur.execute("UNLOCK TABLES")
+                self.db.commit()
             raise Exception("Log replay failed: "+str(e))
 
         if lock_tables:
-            logger.debug(f'nodes_log_add: UNLOCK TABLES')
+            logger.debug(f'(nodes_log_add) UNLOCK TABLES (by {lock_requested_by})')
             self.cur.execute("UNLOCK TABLES")
             self.db.commit()
-
+            logger.debug(f'(nodes_log_add) locks released')
         return
 
 
@@ -136,7 +145,7 @@ class BeekeeperDB():
        # stmt = 'LOCK TABLES `nodes_log` READ'
             self.cur.execute(stmt)
         #self.db.commit()
-            logger.debug(f'got lock')
+            logger.debug(f'(replay_log) got lock')
 
         if replay_from_timestamp:
             # delete all entries newer than replay_from_timestamp in history
@@ -221,9 +230,10 @@ class BeekeeperDB():
                         raise Exception("insert_object failed:" + str(e))
 
         if get_locks:
+            logger.debug("(replay_log) UNLOCK TABLES")
             stmt = 'UNLOCK TABLES'
             self.cur.execute(stmt)
-
+            self.db.commit()
 
     def get_node_state(self, node_id, timestamp=None):
         table_name = 'nodes_history'
@@ -231,7 +241,7 @@ class BeekeeperDB():
         fields_str = ", ".join(fields)
 
         stmt = f'SELECT {fields_str} FROM `{table_name}` WHERE `id` = %s ORDER by `timestamp` DESC LIMIT  1'
-        logger.debug(f'statement: {stmt}')
+        logger.debug(f'statement: {stmt} (with node_id: {node_id})')
         self.cur.execute(stmt, (node_id,))
         row = self.cur.fetchone()
         if not row:
