@@ -636,7 +636,7 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     try:
         bee_db = BeekeeperDB()
         beehive_obj = bee_db.get_beehive(assign_beehive)
-        bee_db.close()
+
     except Exception as e:
         raise Exception(f"get_beehive returned: {str(e)}")
 
@@ -678,6 +678,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
         node_creds = bee_db.get_node_credentials_all(node_id, beehive_id)
     except Exception as e:
         raise Exception(f"get_node_credentials_all failed: {type(e).__name__} {str(e)}")
+
+    bee_db.close()
 
     if not "tls_cert" in node_creds:
         raise Exception(f"tls_cert field missing in node_creds")
