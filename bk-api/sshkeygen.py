@@ -37,10 +37,13 @@ def run_command_communicate(command, input_str):
         raise Exception(f"subprocess.Popen: {str(e)}")
 
     # returns output_stdout,output_stderr
+    input=None
     if input_str:
-        return p.communicate(input=input_str.encode())
+        input=input_str.encode()
 
-    return p.communicate()
+    stdout, stderr =  p.communicate(input=input)
+    exit_code = p.wait()
+    return stdout, stderr , exit_code
 
 
 def run_command(cmd, return_stdout=False):
