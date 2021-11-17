@@ -66,7 +66,7 @@ for nodeID in $*; do
 
     cd ${BASE_DIR}
     set -x
-    curl "${beekeeper_api}:5000/node/${nodeID_upper}" -d '{"assign_beehive": "sage-beehive"}'
+    curl "${beekeeper_api}:5000/node/${nodeID_upper}" -d '{"assign_beehive": "sage-beehive", "deploy_wes":true}'
     set +x
 
     echo "waiting for data from node"
