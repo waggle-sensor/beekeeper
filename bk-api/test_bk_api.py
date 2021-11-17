@@ -100,12 +100,12 @@ def test_assign_node_to_beehive(client):
 
 
     #assign node
-    rv = client.post('/node/0000000000000001', data = json.dumps({"assign_beehive": "test-beehive2"}))
+    rv = client.post('/node/0000000000000001', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
     result = rv.get_json()
     assert "success" in result
 
     #assign node with force
-    rv = client.post('/node/0000000000000001?force=true', data = json.dumps({"assign_beehive": "test-beehive2"}))
+    rv = client.post('/node/0000000000000001?force=true', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
     result = rv.get_json()
     assert "success" in result
 
