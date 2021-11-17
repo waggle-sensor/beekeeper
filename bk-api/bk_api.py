@@ -78,6 +78,7 @@ if not KEY_GEN_TYPE:
     sys.exit("KEY_GEN_TYPE not defined")
 
 DEFAULT_BEEHIVE=os.getenv("DEFAULT_BEEHIVE", "")
+FAKE_DEPLOYMENT=os.getenv("FAKE_DEPLOYMENT", "0")=="1"
 
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
@@ -553,9 +554,10 @@ def node_ssh(node_id, command, input_str=None):
     logger.debug(ssh_cmd_str)
     result_stdout = ""
     result_stderr = ""
+    exit_code = None
     try:
 
-        result_stdout ,result_stderr = run_command_communicate(ssh_cmd, input_str = input_str)
+        result_stdout ,result_stderr, exit_code = run_command_communicate(ssh_cmd, input_str = input_str)
 
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
@@ -569,12 +571,12 @@ def node_ssh(node_id, command, input_str=None):
     if result_stderr:
         result_stderr_str = result_stderr.decode('utf-8')
 
-    return (result_stdout_str ,result_stderr_str)
+    return (result_stdout_str ,result_stderr_str, exit_code)
 
 
 def node_ssh_with_logging(node_id, command, input_str=None):
     try:
-        result_stdout, result_stderr = node_ssh(node_id, command, input_str=input_str)
+        result_stdout, result_stderr , exit_code = node_ssh(node_id, command, input_str=input_str)
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
@@ -582,28 +584,35 @@ def node_ssh_with_logging(node_id, command, input_str=None):
     if result_stderr:
         logger.error("Stderr from node: "+result_stderr)
 
+    if exit_code != 0:
+        raise Exception(f"Command {command} failed with exit_code {exit_code}")
 
 # kube_resource: a dict
 def kubectl_apply(node_id, kube_resource):
     try:
-        result_stdout_str ,result_stderr_str = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
     if (not "unchanged" in result_stdout_str) and (not "created" in result_stdout_str)and (not "configured" in result_stdout_str):
          raise Exception(f"result_stdout_str:{result_stdout_str} result_stderr_str:{result_stderr_str}")
 
-    return result_stdout_str, result_stderr_str
+    return result_stdout_str, result_stderr_str, exit_code
 
 
 def kubectl_apply_with_logging(node_id, kube_resource):
     try:
-        result_stdout, result_stderr = kubectl_apply(node_id, kube_resource)
+        result_stdout, result_stderr , exit_code = kubectl_apply(node_id, kube_resource)
         logger.debug(result_stdout)
         if result_stderr:
             logger.error(result_stderr)
     except Exception as e:
         raise Exception(f"(kubectl_apply_with_logging) {str(e)}")
+
+    if exit_code != 0:
+        raise Exception(f"kubectl_apply returned exit_code {exit_code}")
+
+    return
 
 def kube_configmap(name, data):
     return {
@@ -630,15 +639,27 @@ def kube_secret(name, data):
     except Exception as e:
         raise Exception(f"(kube_secret) {str(e)}")
 
-def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
-    logger.debug("start assign_beehive")
+# force: create new certs even if old ones exist
+def deploy_wes(node_id, this_debug, force=False):
 
+    logger.debug("(deploy_wes) determine correct beehive")
+
+    assign_beehive = ""
+    bee_db = None
     try:
         bee_db = BeekeeperDB()
+        node_state = bee_db.get_node_state(node_id)
+        if not "beehive" in node_state:
+            raise Exception(f"Node is not assigned to any beehive")
+
+        assign_beehive=node_state["beehive"]
+        if assign_beehive == "":
+            raise Exception(f"Node is not assigned to any beehive")
+
         beehive_obj = bee_db.get_beehive(assign_beehive)
 
     except Exception as e:
-        raise Exception(f"get_beehive returned: {str(e)}")
+        raise Exception(f"finding beehive for node failed: {str(e)}")
 
     if not beehive_obj:
         raise Exception(f"Beehive {assign_beehive} unknown" )
@@ -649,6 +670,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
+
+    logger.debug(f"(deploy_wes) using beehive {beehive_id}")
 
     logger.debug("calling create_ssh_upload_cert")
     try:
@@ -753,6 +776,10 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     })
     kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
 
+    final_command = "./update-stack.sh"
+    if FAKE_DEPLOYMENT:
+        final_command = "echo \"This fake deployment was successful\""
+
     deploy_script= \
 """\
 #!/bin/sh
@@ -772,8 +799,9 @@ git pull origin main
 
 cd /opt/waggle-edge-stack/kubernetes
 
-./deploy-stack.sh skip-env
-"""
+""" + final_command
+
+
     #return {"result": "C"}
     try:
         node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
@@ -935,6 +963,7 @@ class Node(MethodView):
         return { "error" : "nothing here, use the /state resource instead " }
 
     # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
+    #          curl localhost:5000/node/xxx -d '{"deploy_wes": true}'
     def post(self, node_id):
         try:
 #request.get
@@ -948,19 +977,29 @@ class Node(MethodView):
         force = request.args.get('force', "false") in ["true", "1"]
 
         if "assign_beehive" in postData:
-            beehive = postData["assign_beehive"]
-
+            assign_beehive = postData["assign_beehive"]
             try:
-                result = node_assign_beehive(node_id, beehive, this_debug, force=force)
+                set_node_beehive(node_id, assign_beehive)
             except Exception as e:
                 logger.error(e)
-                raise ErrorResponse(f"node_assign_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+
+        if "deploy_wes" in postData:
+
+            try:
+                result = deploy_wes(node_id, this_debug, force=force)
+            except Exception as e:
+                logger.error(e)
+                raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+            return jsonify(result)
 
 
 
 
-
-        return jsonify(result)
+        return jsonify({"success":True})
 
 
 class BeehivesList(MethodView):
