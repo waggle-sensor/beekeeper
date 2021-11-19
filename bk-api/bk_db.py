@@ -59,7 +59,7 @@ class BeekeeperDB():
         self.cur.close()
         self.db.close()
 
-    def nodes_log_add(self, logData, lock_tables=True, lock_requested_by=""):
+    def nodes_log_add(self, logData, lock_tables=True, lock_requested_by="", replay=True):
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
         values_s = '%s, %s, %s, %s, %s, %s, %s'
@@ -86,11 +86,11 @@ class BeekeeperDB():
             value_tuple =(log["node_id"], table_name, log["operation"], field_name, log["new_value"], log["source"], effective_time)
             values.append(value_tuple)
 
-        if lock_tables:
-            stmt = "LOCK TABLES `nodes_log` WRITE, `nodes_history` WRITE "
-            logger.debug(f'(nodes_log_add) {stmt} (by {lock_requested_by})')
-            self.cur.execute(stmt)
-            logger.debug(f'(nodes_log_add) got lock')
+        #if lock_tables:
+        #    stmt = "LOCK TABLES `nodes_log` WRITE, `nodes_history` WRITE "
+        #    logger.debug(f'(nodes_log_add) {stmt} (by {lock_requested_by})')
+        #    self.cur.execute(stmt)
+        #    logger.debug(f'(nodes_log_add) got lock')
 
         stmt = f'INSERT INTO `nodes_log` ( {fields} ) VALUES ({values_s})'
         #debug_stmt = stmt
@@ -106,21 +106,23 @@ class BeekeeperDB():
 
         self.db.commit()
 
-        try:
+        if replay:
+            try:
 
-            self.replay_log(replay_from_timestamp = smallest_timestamp, get_locks=False)
-        except Exception as e:
-            if lock_tables:
-                logger.debug(f'nodes_log_add exists with exception: UNLOCK TABLES')
-                self.cur.execute("UNLOCK TABLES")
-                self.db.commit()
-            raise Exception("Log replay failed: "+str(e))
+                #self.replay_log(replay_from_timestamp = smallest_timestamp, get_locks=False)
+                self.replay_log()
+            except Exception as e:
+            #    if lock_tables:
+            #        logger.debug(f'nodes_log_add exists with exception: UNLOCK TABLES')
+            #        self.cur.execute("UNLOCK TABLES")
+            #        self.db.commit()
+                raise Exception("Log replay failed: "+str(e))
 
-        if lock_tables:
-            logger.debug(f'(nodes_log_add) UNLOCK TABLES (by {lock_requested_by})')
-            self.cur.execute("UNLOCK TABLES")
-            self.db.commit()
-            logger.debug(f'(nodes_log_add) locks released')
+        #if lock_tables:
+        #    logger.debug(f'(nodes_log_add) UNLOCK TABLES (by {lock_requested_by})')
+        #    self.cur.execute("UNLOCK TABLES")
+        #    self.db.commit()
+        #    logger.debug(f'(nodes_log_add) locks released')
         return
 
 
@@ -138,15 +140,19 @@ class BeekeeperDB():
 
         fields_str = ', '.join(fields)
 
-        if get_locks:
-            stmt = 'LOCK TABLES `nodes_history` WRITE , `nodes_log` READ'
-            logger.debug(f'replay_log, execute: {stmt}')
+        #if get_locks:
+        #    stmt = 'LOCK TABLES `nodes_history` WRITE , `nodes_log` READ'
+        #    logger.debug(f'replay_log, execute: {stmt}')
        #self.cur.execute(stmt)
        # stmt = 'LOCK TABLES `nodes_log` READ'
-            self.cur.execute(stmt)
+        #    self.cur.execute(stmt)
         #self.db.commit()
-            logger.debug(f'(replay_log) got lock')
+        #    logger.debug(f'(replay_log) got lock')
 
+        self.cur.execute('SET autocommit = OFF')
+        self.cur.execute('START TRANSACTION')
+
+        execute_args = []
         if replay_from_timestamp:
             # delete all entries newer than replay_from_timestamp in history
 
@@ -157,12 +163,20 @@ class BeekeeperDB():
 
             debug_stmt = stmt
             debug_stmt = debug_stmt.replace("%s", f'"{replay_from_timestamp.isoformat()}"', 1)
-            logger.debug(f'debug_stmt: {debug_stmt}')
-            try:
-                self.cur.execute(stmt, (replay_from_timestamp,))
-                self.db.commit()
-            except Exception as e:
-                raise Exception("Deleting lastes history failed:" + str(e))
+            execute_args = [replay_from_timestamp]
+        else:
+            stmt = f'DELETE FROM `nodes_history`'
+            debug_stmt = stmt
+
+
+        logger.debug(f'debug_stmt: {debug_stmt}')
+        try:
+
+            self.cur.execute(stmt, execute_args)
+
+            #self.db.commit()
+        except Exception as e:
+            raise Exception("Deleting latest history failed:" + str(e))
 
 
         nodes_last_state = {}
@@ -201,23 +215,40 @@ class BeekeeperDB():
                 col = row[fieldIndex['field_name']]
                 value = row[fieldIndex['new_value']]
                 effective_time = row[fieldIndex['effective_time']]
-                node_object = nodes_last_state.get(node_id, {})
-                #if not node_object:
-                # TODO get object from db
 
-                if 'timestamp' in node_object and node_object['timestamp'] != effective_time:
-                    # this is a new timestamp, process old history point first
+                # first try to find node_object in cache
+                node_object = nodes_last_state.get(node_id)
+
+                # then try to find last state in history table (which might be empty)
+                if not node_object:
+                    node_object = self.get_node_state(node_id)
+
+                # if not found exitsing node_state, create new one
+                if not node_object:
+                    node_object = {}
+                    node_object['id']=node_id
+
+                previous_timestamp = None
+                if 'timestamp' in node_object:
+                    previous_timestamp = node_object['timestamp']
+
+
+                # insert previous state only if timestamp is different from previous one to prevent "Duplicate entry" issue in mysql
+                # delaying insertion allows us to collect changes within the same timestamp and prevents "Duplicate entry"
+                if previous_timestamp != None and previous_timestamp != effective_time:
                     try:
                         self.insert_object("nodes_history", node_object)
                     except Exception as e:
                         raise Exception("insert_object failed:" + str(e))
-                # this could be either a new one OR an old one with the same timestamp
-                node_object['id']=node_id
 
+
+                # modfiy state (insert later!)
                 node_object[col]=value
                 node_object['timestamp'] = effective_time
-                #print('node_object:')
-                #print(node_object, flush=True)
+
+
+
+                # put into cache:
                 nodes_last_state[node_id] = node_object
                 #print("end of current row", flush=True)
 
@@ -225,17 +256,20 @@ class BeekeeperDB():
         for node_id in nodes_last_state:
             node_object = nodes_last_state[node_id]
             try:
-                self.insert_object("nodes_history", node_object)
+                self.insert_object("nodes_history", node_object, commit=False)
             except Exception as e:
                         raise Exception("insert_object failed:" + str(e))
 
-        if get_locks:
-            logger.debug("(replay_log) UNLOCK TABLES")
-            stmt = 'UNLOCK TABLES'
-            self.cur.execute(stmt)
-            self.db.commit()
+        # now all is done an we can commit
+        self.db.commit()
 
-    def get_node_state(self, node_id, timestamp=None):
+        #if get_locks:
+        #    logger.debug("(replay_log) UNLOCK TABLES")
+        #    stmt = 'UNLOCK TABLES'
+        #    self.cur.execute(stmt)
+        #    self.db.commit()
+
+    def get_node_state(self, node_id, timestamp=None, iso=True):
         table_name = 'nodes_history'
         fields = table_fields[table_name]
         fields_str = ", ".join(fields)
@@ -245,7 +279,7 @@ class BeekeeperDB():
         self.cur.execute(stmt, (node_id,))
         row = self.cur.fetchone()
         if not row:
-            raise Exception("Node not found")
+            return None
 
 
         result = {}
@@ -254,6 +288,13 @@ class BeekeeperDB():
 
         if not result:
             raise Exception("Result dict empty, should not happen")
+
+        if iso:
+            for key in ["timestamp", "registration_event", "wes_deploy_event"]:
+                if key in result:
+                    if result[key] != None:
+                        result[key] = result[key].isoformat()
+
 
         return result
 
@@ -369,6 +410,12 @@ class BeekeeperDB():
         for row in self.cur.fetchall():
             results.append(dict(zip(fields, row)))
 
+        for node in results:
+            for key in ["timestamp", "registration_event", "wes_deploy_event"]:
+                if key in node:
+                    if node[key] != None:
+                        node[key] = node[key].isoformat()
+
         return results
 
 
@@ -447,7 +494,7 @@ class BeekeeperDB():
         return result
 
 
-    def insert_object(self, table_name, row_object, force=False):
+    def insert_object(self, table_name, row_object, force=False, commit=True):
         fields_str , values, replacement_str = self.dict2mysql(row_object)
 
         stmt = f'INSERT INTO {table_name} ({fields_str}) VALUES ({replacement_str})'
@@ -466,7 +513,8 @@ class BeekeeperDB():
 
         print(f'debug_stmt: {debug_stmt}', flush=True)
         self.cur.execute(stmt, (*values, ))
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
         if (not force) and self.cur.rowcount != 1:
             raise Exception(f"insertion went wrong (self.cur.rowcount: {self.cur.rowcount})")

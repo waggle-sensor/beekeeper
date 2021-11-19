@@ -1,7 +1,9 @@
 #!/bin/bash
 set -x
 
-
+#
+# Note that the pytests delete nodes_log table !
+#
 
 curl localhost:5000/beehives -d '{"id": "my-beehive", "key-type": "rsa-sha2-256", "rmq-host":"host", "rmq-port": 5, "upload-host":"host", "upload-port": 6}'
 cd test-data/beehive_ca

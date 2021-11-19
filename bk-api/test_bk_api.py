@@ -176,7 +176,8 @@ def test_log_insert(client):
         'project_id': 'project_X',
         'server_node': None,
         'timestamp': (test_time - datetime.timedelta(days= 1)).isoformat(),
-        'registration_event': (test_time - datetime.timedelta(days= 5)).isoformat()
+        'registration_event': (test_time - datetime.timedelta(days= 5)).isoformat(),
+        'wes_deploy_event': None
     }
 
 

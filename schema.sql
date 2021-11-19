@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     `internet_connection`   TEXT,  /* optional: instruction how node gets internet access */
     `beehive`               VARCHAR(64), /* (id of) beehive server the node is supposed to be using */
     `registration_event`    TIMESTAMP(0), /* last time (not first!) the node registered (only needed to create a first log entry for node) */
+    `wes_deploy_event`      TIMESTAMP(0), /* indicates successful deployment (used to focus on node without recent wes deployment) */
     PRIMARY KEY(`id`, `timestamp`)
 );
 
