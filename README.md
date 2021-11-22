@@ -21,6 +21,7 @@ Note: Options above like `--nopassword` and `forever` should not be used in prod
 
 # Register a beehive with beekeeper (example)
 
+1) The first step creates a beehive but credentials will be missing.
 ```bash
 kubectl port-forward service/beekeeper-api 5000:5000  # if needed
 
@@ -31,9 +32,9 @@ Verify:
 curl localhost:5000/beehives | jq .
 ```
 
-Create beehive (not beekeeper) CA credentials: [https://github.com/waggle-sensor/waggle-pki-tools](https://github.com/waggle-sensor/waggle-pki-tools)
+2) Create beehive (not beekeeper) CA credentials: [https://github.com/waggle-sensor/waggle-pki-tools](https://github.com/waggle-sensor/waggle-pki-tools)
 
-Add credentials for beehive to beekeeper
+3) Add credentials for beehive to beekeeper
 ```bash
 cd test-data/beehive_ca
 curl -F "tls-key=@tls/cakey.pem" -F "tls-cert=@tls/cacert.pem"  -F "ssh-key=@ssh/ca" -F "ssh-pub=@ssh/ca.pub" -F "ssh-cert=@ssh/ca-cert.pub"  localhost:5000/beehives/my-beehive
@@ -49,6 +50,7 @@ This will only work once node has registered.
 
 ```bash
 curl localhost:5000/node/0000000000000001 -d '{"assign_beehive": "my-beehive"}'
+curl localhost:5000/node/0000000000000001 -d '{"deploy_wes": true}'
 ```
 
 Check the logs:

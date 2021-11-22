@@ -59,6 +59,7 @@ logger.addHandler(handler)
 
 
 
+
 for k, v in sorted(os.environ.items()):
     print(k+':', v)
 print('\n')
@@ -77,6 +78,9 @@ KEY_GEN_ARGS = os.getenv("KEY_GEN_ARGS", "")
 if not KEY_GEN_TYPE:
     sys.exit("KEY_GEN_TYPE not defined")
 
+DEFAULT_BEEHIVE=os.getenv("DEFAULT_BEEHIVE", "")
+FAKE_DEPLOYMENT=os.getenv("FAKE_DEPLOYMENT", "0")=="1"
+
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
 
@@ -94,17 +98,18 @@ def ShowException():
 
 
 
+
 def b64string_encode(input):
     return base64.b64encode(str.encode(input)).decode('utf-8')
 
 
-def register_node(node_id, lock_tables=True):
+def register_node(node_id, lock_tables=True, lock_requested_by=""):
 
     payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "registration_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
 
     #url = f'{BEEKEEPER_DB_API}/log'
     try:
-        insert_log(payload, lock_tables=lock_tables)
+        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
         #bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
     except Exception as e:
         #raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
@@ -112,6 +117,62 @@ def register_node(node_id, lock_tables=True):
 
 
     return
+
+def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by=""):
+
+    payload = {"node_id": node_id, "source": "beekeeper-wes-deploy", "operation":"insert", "field_name": "wes_deploy_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
+
+    #url = f'{BEEKEEPER_DB_API}/log'
+    try:
+        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
+
+    except Exception as e:
+        raise Exception(f"insert_log returned: {str(e)}")
+
+
+    return
+
+def set_node_beehive(node_id, beehive_id):
+
+    # At this point we already know that beehive exists.
+    # Now check if node is already assigned to that beehive
+    node_state = None
+
+    try:
+        bee_db = BeekeeperDB()
+        node_state = bee_db.get_node_state(node_id)
+    #except bk_db.ObjectNotFound:
+    #    node_state = None
+        bee_db.close()
+    except Exception as e:
+        logger.debug(f"Getting node failed: {str(e)}")
+        time.sleep(3)
+        pass
+
+    if not node_state:
+        raise Exception(f"node {node_id} not found")
+
+
+    if "beehive" in node_state:
+        if node_state["beehive"] == beehive_id:
+            logger.debug(f"Node {node_id} is already assigned to beehive {beehive_id}")
+            return
+
+    payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "beehive", "field_value": beehive_id}
+
+    #url = f'{BEEKEEPER_DB_API}/log'
+    try:
+        insert_log(payload, lock_tables=True, force=True, lock_requested_by="set_node_beehive")
+        #bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
+    except Exception as e:
+        #raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
+        raise Exception(f"insert_log returned: {str(e)}")
+
+
+    return
+
+
+
 
 
 # register test nodes (use only in development environment)
@@ -130,6 +191,7 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
     try:
         bee_db = BeekeeperDB()
         node_list = bee_db.list_latest_state()
+        bee_db.close()
     except Exception as e:
         raise Exception(f'list_latest_state returned: {str(e)}')
 
@@ -182,6 +244,7 @@ def get_node_keypair(node_id):
     try:
         bee_db = BeekeeperDB()
         return_obj = bee_db.get_node_keypair(node_id)
+        bee_db.close()
     except Exception as e:
         raise Exception(f"bee_db.get_node_keypair returned: {str(e)}")
 
@@ -212,6 +275,8 @@ def post_node_credentials(node_id, private_key, public_key):
         bee_db.set_node_keypair(node_id, post_creds)
     except Exception as e:
         raise Exception(f"set_node_keypair returned: {str(e)}")
+
+    bee_db.close()
 
     return
 
@@ -350,7 +415,7 @@ class Root(MethodView):
         return "SAGE Beekeeper API"
 
 
-def insert_log(postData, lock_tables=True, force=False):
+def insert_log(postData, lock_tables=True, force=False, lock_requested_by="", replay=True):
     listData = None
     if isinstance( postData, dict ):
         listData = [ postData ]
@@ -363,11 +428,7 @@ def insert_log(postData, lock_tables=True, force=False):
         raise Exception("list expected")
 
 
-    bee_db = None
-    try:
-        bee_db = BeekeeperDB()
-    except Exception as e:
-        raise Exception(f"Could not create BeekeeperDB: {e}" )
+
 
 
     logData = []
@@ -399,10 +460,21 @@ def insert_log(postData, lock_tables=True, force=False):
         logData.append(newLogDataEntry)
         #print("success", flush=True)
 
+    bee_db = None
     try:
-        bee_db.nodes_log_add(logData, lock_tables=lock_tables) #  effective_time=effective_time)
+        bee_db = BeekeeperDB()
+    except Exception as e:
+        raise Exception(f"Could not create BeekeeperDB: {e}" )
+
+    try:
+        bee_db.nodes_log_add(logData, lock_tables=lock_tables, lock_requested_by=lock_requested_by, replay=replay)  #  effective_time=effective_time)
     except Exception as ex:
         raise Exception(f"nodes_log_add failed: {ex}" )
+
+
+
+
+    bee_db.close()
 
     return
 
@@ -426,7 +498,7 @@ class Log(MethodView):
             raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         try:
-            insert_log(postData)
+            insert_log(postData, lock_requested_by="log-resource", replay=True)
         except Exception as e:
             raise ErrorResponse(f"Could not insert log: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -437,6 +509,26 @@ class Log(MethodView):
     def get(self):
         return "try POST..."
 
+# /replay
+class Replay(MethodView):
+
+    # request a replay (request will be put in mysql)
+    # this can be used when items have been inserted without replays enabled.
+    def get(self):
+        bee_db = None
+        try:
+            bee_db = BeekeeperDB()
+        except Exception as e:
+            raise Exception(f"Could not create BeekeeperDB: {e}" )
+
+        try:
+            bee_db.replay_log()
+        except Exception as e:
+            raise Exception(f"Could not create BeekeeperDB: {e}" )
+
+
+        response = {"success" : 1}
+        return response
 
 
 # /state
@@ -445,7 +537,7 @@ class ListStates(MethodView):
         try:
             bee_db = BeekeeperDB()
             node_state = bee_db.list_latest_state()
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -461,15 +553,14 @@ class State(MethodView):
 
             bee_db = BeekeeperDB()
             node_state = bee_db.get_node_state(node_id)
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-        if "timestamp" in node_state:
-            node_state["timestamp"] = node_state["timestamp"].isoformat()
+        if node_state == None:
+            raise ErrorResponse(f"Error: node {node_id} not found")
 
-        if "registration_event" in node_state:
-            node_state["registration_event"] = node_state["registration_event"].isoformat()
+
 
         return { "data" : node_state }
 
@@ -505,9 +596,10 @@ def node_ssh(node_id, command, input_str=None):
     logger.debug(ssh_cmd_str)
     result_stdout = ""
     result_stderr = ""
+    exit_code = None
     try:
 
-        result_stdout ,result_stderr = run_command_communicate(ssh_cmd, input_str = input_str)
+        result_stdout ,result_stderr, exit_code = run_command_communicate(ssh_cmd, input_str = input_str)
 
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
@@ -521,12 +613,12 @@ def node_ssh(node_id, command, input_str=None):
     if result_stderr:
         result_stderr_str = result_stderr.decode('utf-8')
 
-    return (result_stdout_str ,result_stderr_str)
+    return (result_stdout_str ,result_stderr_str, exit_code)
 
 
 def node_ssh_with_logging(node_id, command, input_str=None):
     try:
-        result_stdout, result_stderr = node_ssh(node_id, command, input_str=input_str)
+        result_stdout, result_stderr , exit_code = node_ssh(node_id, command, input_str=input_str)
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
@@ -534,28 +626,35 @@ def node_ssh_with_logging(node_id, command, input_str=None):
     if result_stderr:
         logger.error("Stderr from node: "+result_stderr)
 
+    if exit_code != 0:
+        raise Exception(f"Command {command} failed with exit_code {exit_code}")
 
 # kube_resource: a dict
 def kubectl_apply(node_id, kube_resource):
     try:
-        result_stdout_str ,result_stderr_str = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
     if (not "unchanged" in result_stdout_str) and (not "created" in result_stdout_str)and (not "configured" in result_stdout_str):
          raise Exception(f"result_stdout_str:{result_stdout_str} result_stderr_str:{result_stderr_str}")
 
-    return result_stdout_str, result_stderr_str
+    return result_stdout_str, result_stderr_str, exit_code
 
 
 def kubectl_apply_with_logging(node_id, kube_resource):
     try:
-        result_stdout, result_stderr = kubectl_apply(node_id, kube_resource)
+        result_stdout, result_stderr , exit_code = kubectl_apply(node_id, kube_resource)
         logger.debug(result_stdout)
         if result_stderr:
             logger.error(result_stderr)
     except Exception as e:
         raise Exception(f"(kubectl_apply_with_logging) {str(e)}")
+
+    if exit_code != 0:
+        raise Exception(f"kubectl_apply returned exit_code {exit_code}")
+
+    return
 
 def kube_configmap(name, data):
     return {
@@ -582,14 +681,33 @@ def kube_secret(name, data):
     except Exception as e:
         raise Exception(f"(kube_secret) {str(e)}")
 
-def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
-    logger.debug("start assign_beehive")
+# force: create new certs even if old ones exist
+def deploy_wes(node_id, this_debug, force=False):
 
+    logger.debug("(deploy_wes) determine correct beehive")
+
+    assign_beehive = ""
+    bee_db = None
     try:
         bee_db = BeekeeperDB()
+        node_state = bee_db.get_node_state(node_id)
+    except Exception as e:
+        raise Exception(f"finding beehive for node failed: {str(e)}")
+
+    if not node_state:
+        raise Exception(f"node {node_id} not found")
+
+    if not "beehive" in node_state:
+        raise Exception(f"Node is not assigned to any beehive")
+
+    assign_beehive=node_state["beehive"]
+    if assign_beehive == "":
+        raise Exception(f"Node is not assigned to any beehive")
+
+    try:
         beehive_obj = bee_db.get_beehive(assign_beehive)
     except Exception as e:
-        raise Exception(f"get_beehive returned: {str(e)}")
+        raise Exception(f"finding beehive for node failed: {str(e)}")
 
     if not beehive_obj:
         raise Exception(f"Beehive {assign_beehive} unknown" )
@@ -600,6 +718,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
+
+    logger.debug(f"(deploy_wes) using beehive {beehive_id}")
 
     logger.debug("calling create_ssh_upload_cert")
     try:
@@ -629,6 +749,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
         node_creds = bee_db.get_node_credentials_all(node_id, beehive_id)
     except Exception as e:
         raise Exception(f"get_node_credentials_all failed: {type(e).__name__} {str(e)}")
+
+    bee_db.close()
 
     if not "tls_cert" in node_creds:
         raise Exception(f"tls_cert field missing in node_creds")
@@ -702,6 +824,10 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
     })
     kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
 
+    final_command = "./update-stack.sh"
+    if FAKE_DEPLOYMENT:
+        final_command = "echo \"This fake deployment was successful\""
+
     deploy_script= \
 """\
 #!/bin/sh
@@ -709,6 +835,8 @@ def node_assign_beehive(node_id, assign_beehive, this_debug, force=False):
 set -e
 set -x
 
+# check if k3s runs
+kubectl get nodes
 
 if [ ! -e "/opt/waggle-edge-stack" ] ; then
     cd /opt
@@ -721,14 +849,20 @@ git pull origin main
 
 cd /opt/waggle-edge-stack/kubernetes
 
-./deploy-stack.sh skip-env
-"""
+""" + final_command
+
+
     #return {"result": "C"}
     try:
         node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
         node_ssh_with_logging(node_id, "sh /tmp/deploy.sh")
     except Exception as e:
         raise Exception(f"node_ssh_with_logging failed: {str(e)}")
+
+    try:
+        register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by="wes_deployment")
+    except Exception as e:
+        raise Exception(f"register_wes_deployment_event failed: {str(e)}")
 
     if this_debug:
         return {
@@ -884,6 +1018,7 @@ class Node(MethodView):
         return { "error" : "nothing here, use the /state resource instead " }
 
     # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
+    #          curl localhost:5000/node/xxx -d '{"deploy_wes": true}'
     def post(self, node_id):
         try:
 #request.get
@@ -897,19 +1032,29 @@ class Node(MethodView):
         force = request.args.get('force', "false") in ["true", "1"]
 
         if "assign_beehive" in postData:
-            beehive = postData["assign_beehive"]
-
+            assign_beehive = postData["assign_beehive"]
             try:
-                result = node_assign_beehive(node_id, beehive, this_debug, force=force)
+                set_node_beehive(node_id, assign_beehive)
             except Exception as e:
                 logger.error(e)
-                raise ErrorResponse(f"node_assign_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+
+        if "deploy_wes" in postData:
+
+            try:
+                result = deploy_wes(node_id, this_debug, force=force)
+            except Exception as e:
+                logger.error(e)
+                raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+            return jsonify(result)
 
 
 
 
-
-        return jsonify(result)
+        return jsonify({"success":True})
 
 
 class BeehivesList(MethodView):
@@ -925,6 +1070,7 @@ class BeehivesList(MethodView):
                 fields=None
 
             result =  bee_db.get_objects('beehives', fields = fields)
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Error getting list of beehives: { type(e).__name__ }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -972,7 +1118,7 @@ class BeehivesList(MethodView):
 
 
         modified = bee_db.insert_object("beehives", beehive_obj, force=True)
-
+        bee_db.close()
         return jsonify({"modified": modified})
 
 
@@ -989,7 +1135,7 @@ class Beehives(MethodView):
             raise Exception(f"Beehive {beehive_id} not found" )
 
 
-
+        bee_db.close()
         return jsonify(obj)
 
 
@@ -1040,7 +1186,7 @@ class Beehives(MethodView):
 
                 count_updated += bee_db.update_object_field("beehives", col_name, data[formname], "id", beehive_id)
 
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"something failed: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -1051,7 +1197,7 @@ class Beehives(MethodView):
 
         bee_db = BeekeeperDB()
         result = bee_db.delete_object("beehives", "id", beehive_id )
-
+        bee_db.close()
         return jsonify({"deleted": result})
 
 
@@ -1063,7 +1209,7 @@ class Credentials(MethodView):
 
             bee_db = BeekeeperDB()
             results = bee_db.get_node_keypair(node_id)
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -1105,7 +1251,7 @@ class Credentials(MethodView):
 
             bee_db = BeekeeperDB()
             results = bee_db.set_node_keypair(node_id, postData)
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -1120,7 +1266,7 @@ class Credentials(MethodView):
 
             bee_db = BeekeeperDB()
             result_count = bee_db.delete_object( "node_credentials", "id", node_id)
-
+            bee_db.close()
         except Exception as e:
             raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -1146,28 +1292,55 @@ class Registration(MethodView):
         """
         node_id = request.args.get("id", type=str)
         if not node_id:
+            logger.debug("Registration failed: id missing")
             return f"Error: id missing\n", 500
 
         logger.debug("Register user [{}]".format(node_id))
 
+
+        if DEFAULT_BEEHIVE:
+            # first check the default beehive exists
+            try:
+                bee_db = BeekeeperDB()
+                beehive_obj = bee_db.get_beehive(DEFAULT_BEEHIVE)
+                bee_db.close()
+            except Exception as e:
+                raise Exception(f"error: get_beehive returned: {str(e)}")
+
+            if not beehive_obj:
+                raise Exception(f"error: Beehive {DEFAULT_BEEHIVE} is not known yet" )
+
         try:
+            # create keypair and certificates for node (idempotent function)
             registration_result =  _register(node_id)
         except Exception as e:
-            logger.error(f"_register failed: {str(e)}")
+            logger.debug(f"_register failed: {str(e)}")
             traceback.print_exc()
+            logger.debug(f"Error: unable to register id [{node_id} , {str(e)}]")
             return f"Error: unable to register id [{node_id} , {str(e)}]\n", 500
 
-        # update beekeeper db
-
-
+        # update beekeeper db (create registartion event)
         try:
-            register_node(node_id)
+            register_node(node_id, lock_requested_by="register-resource")
         except Exception as e:
-            return f"Error: Registration failed: {str(e)}", 500
+            logger.debug(f"Error: Creating registration event failed: {str(e)}")
+            return f"Error: Creating registration event failed: {str(e)}", 500
 
 
+        if DEFAULT_BEEHIVE:
+            time.sleep(2) # see if that helps with the locks
+            logger.debug("Adding user [{}] to default beehive".format(node_id))
+            try:
+                set_node_beehive(node_id, DEFAULT_BEEHIVE)
+            except Exception as e:
+                logger.debug(f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}")
+                # Do not let registration fail because of this
+                return f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}", 500
+        else:
+            logger.debug("No default beehive defined")
 
 
+        logger.debug(f"success: responding with registration results")
         #return json.dumps(registration_result)
         return registration_result
 
@@ -1182,6 +1355,9 @@ app.config["PROPAGATE_EXCEPTIONS"] = True
 
 app.add_url_rule('/', view_func=Root.as_view('root'))
 app.add_url_rule('/log', view_func=Log.as_view('log'))
+
+app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
+
 app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
 app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
 app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
@@ -1227,7 +1403,7 @@ def setup_app(app):
         for f in range(len(table_fields[table_name])):
             table_fields_index[table_name][table_fields[table_name][f]] = f
 
-
+    bee_db.close()
     logger.debug(table_fields)
     logger.debug(table_fields_index)
 

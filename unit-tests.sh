@@ -1,4 +1,13 @@
 #!/bin/bash
+set -x
+
+#
+# Note that the pytests delete nodes_log table !
+#
+
+curl localhost:5000/beehives -d '{"id": "my-beehive", "key-type": "rsa-sha2-256", "rmq-host":"host", "rmq-port": 5, "upload-host":"host", "upload-port": 6}'
+cd test-data/beehive_ca
+curl -F "tls-key=@tls/cakey.pem" -F "tls-cert=@tls/cacert.pem"  -F "ssh-key=@ssh/ca" -F "ssh-pub=@ssh/ca.pub" -F "ssh-cert=@ssh/ca-cert.pub"  localhost:5000/beehives/my-beehive
 
 
 until docker exec -i beekeeper_bk-sshd_1 test -e /home_dirs/node-0000000000000001/rtun.sock
@@ -10,42 +19,5 @@ done
 ### TEST BEEKEEPER API
 set -x
 docker exec beekeeper_bk-api_1 /bin/bash -c 'coverage run -m pytest -v  &&  coverage report -m --fail-under 85 --include=./*'
-
-
-exit 0
-
-### TEST REGISTRATION
-# THESES tests are obsolete as they ae covered by the node1 docker container which does a registration
-
-DOCKER_NETWORK=$(docker network ls --format '{{.Name}}' | grep beekeeper)
-
-echo "DOCKER_NETWORK: ${DOCKER_NETWORK}"
-
-set -e
-set -x
-
-
-
-JSON=$(docker run -i --rm --network ${DOCKER_NETWORK} -v ${PWD}/beekeeper-keys/registration_certs/untilforever/:/untilforever/ waggle/beekeeper-api bash -c 'ssh -o StrictHostKeyChecking=no  sage_registration@bk-sshd -p 22 -i /untilforever/registration register 0000000000000001')
-set +x
-echo "JSON: ${JSON}"
-echo "---------------------------"
-NEW_ID=$(echo ${JSON} | jq -r -j .id | tail -n 1)
-
-if [ "${NEW_ID}_" != "node-0000000000000001_" ] ; then
-  echo "registration test failed, expected \"node-0000000000000001\", got \"${NEW_ID}\""
-  exit 1
-fi
-
-echo "correct node_id was returned in registration process"
-
-# verify node is in database
-set -x
-NEW_ID2=$(docker exec -i beekeeper_bk-api_1  bash -c "curl localhost:5000/state/0000000000000001" | jq -r -j .data.id)
-set +x
-if [ "${NEW_ID2}_" != "0000000000000001_" ] ; then
-  echo "database test failed, expected \"0000000000000001\", got \"${NEW_ID2}\""
-  exit 1
-fi
 
 
