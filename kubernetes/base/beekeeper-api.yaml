@@ -64,8 +64,17 @@ spec:
         k8s-app: beekeeper-api
     spec:
       containers:
-      - image: waggle/beekeeper-api:latest
-        name: beekeeper-api
+      - name: deploy-manager
+        image: waggle/beekeeper-deploy-manager
+        resources:
+          limits:
+            cpu: 2
+            memory: "1Gi"
+        env:
+          - name: BEEKEEPER_URL
+            value: http://beekeeper-api:5000
+      - name: beekeeper-api
+        image: waggle/beekeeper-api:latest
         volumeMounts:
           - name: ca-secret
             mountPath: "/usr/lib/waggle/certca/"
@@ -81,25 +90,14 @@ spec:
         envFrom:
           - configMapRef:
               name: beekeeper-api-config
-        env:
-        - name: MYSQL_PASSWORD
-          valueFrom:
-            secretKeyRef:
+          - configMapRef:
+              name: beekeeper-config
+          - secretRef:
               name: beekeeper-api-secret
-              key: MYSQL_PASSWORD
-
-        - name: KEY_GEN_TYPE
-          valueFrom:
-            configMapKeyRef:
-              name: beekeeper-config
-              key: KEY_GEN_TYPE
-        - name: KEY_GEN_ARGS
-          valueFrom:
-            configMapKeyRef:
-              name: beekeeper-config
-              key: KEY_GEN_ARGS
-
-
+        resources:
+          limits:
+            cpu: 4
+            memory: "1Gi"
         ports:
           - name: api
             containerPort: 5000
