@@ -6,6 +6,7 @@
 # https://mysqlclient.readthedocs.io/
 
 
+from genericpath import exists
 import os
 import sys
 
@@ -565,18 +566,22 @@ class State(MethodView):
         return { "data" : node_state }
 
 # draft of a scp function, did not end up using it, but might come in handy if needed
-#def scp(source, node_id, target):
-#    command_array = ["scp",
-#            "-i", node_key ,
-#            "-o" , "UserKnownHostsFile=/dev/null",
-#            "-o", "StrictHostKeyChecking=no",
-#            "-o", "IdentitiesOnly=true",
-#            "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@bk-sshd -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
-#            source,
-#            f"root@foo:{target}"]
-#
-#    result_stdout = run_command(command_array, return_stdout=True)
-#    return result_stdout
+def scp(source, node_id, target):
+    command_array = ["scp",
+           "-i", node_key ,
+           "-o", "UserKnownHostsFile=/dev/null",
+           "-o", "StrictHostKeyChecking=no",
+           "-o", "IdentitiesOnly=true",
+           "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
+           source,
+           f"root@foo:{target}"]
+
+    try:
+        result_stdout ,result_stderr, exit_code = run_command_communicate(command_array)
+    except Exception as e:
+        raise Exception(f"run_command_communicate: {str(e)}")
+
+    return result_stdout ,result_stderr, exit_code
 
 
 
@@ -584,7 +589,7 @@ def node_ssh(node_id, command, input_str=None):
     ssh_cmd =  ["ssh",
             #"-tt",
             "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
-            "-o" , "UserKnownHostsFile=/dev/null",
+            "-o", "UserKnownHostsFile=/dev/null",
             "-o", "StrictHostKeyChecking=no",
             "-o", "IdentitiesOnly=true",
             "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
@@ -721,6 +726,17 @@ def deploy_wes(node_id, this_debug, force=False):
 
     logger.debug(f"(deploy_wes) using beehive {beehive_id}")
 
+
+    # first check if kubectl work on the node
+    try:
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
+    except Exception as e:
+        raise Exception(f"node_ssh failed: {str(e)}")
+
+    if exit_code != 0:
+        raise Exception(f"ssh failed or kubectl is not yet ready ({result_stderr_str})")
+
+
     logger.debug("calling create_ssh_upload_cert")
     try:
         create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force )
@@ -823,6 +839,16 @@ def deploy_wes(node_id, this_debug, force=False):
         "cacert.pem": ca_tls_cert,
     })
     kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
+
+    node_private_git_repo_key = "/config/node-private-git-repo-key/node-private-git-repo-key"
+    if os.path.exists(node_private_git_repo_key):
+        result_stdout , result_stderr, exit_code = scp(node_private_git_repo_key, node_id, "/root/.ssh/")
+        if exit_code != 0 :
+            raise Exception(f"scp failed {result_stderr} and {result_stdout}")
+    else:
+        logger.info("/config/node-private-git-repo-key/node-private-git-repo-key not found, skipping")
+
+
 
     final_command = "./update-stack.sh"
     if FAKE_DEPLOYMENT:

@@ -86,13 +86,16 @@ def try_wes_deployment(candidates):
         if resp.status_code != 200:
             logging.error(d_url)
             logging.error(f"Something went wrong: status_code: {resp.status_code} body: {resp.text}")
+            continue
         result = resp.json()
         if not "success" in result:
             logging.error(d_url)
             logging.error(f"Something went wrong: status_code: {resp.status_code} body: {resp.text}")
+            continue
         if not result["success"]:
             logging.error(d_url)
             logging.error(f"Something went wrong: status_code: {resp.status_code} body: {resp.text}")
+            continue
 
         success_count += 1
         time.sleep(2)
