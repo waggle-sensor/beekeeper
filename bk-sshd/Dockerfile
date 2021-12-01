@@ -5,6 +5,8 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
+# docker build -t waggle/beekeeper-sshd:latest .
+
 # note: this base image should be the same as used in bk-api
 FROM ubuntu:20.04
 #FROM ubuntu:18.04
@@ -67,6 +69,8 @@ RUN echo "    DenyUsers root" >> /etc/ssh/sshd_config
 COPY ROOTFS/ /
 COPY /entrypoint.sh /
 COPY bin/* /usr/local/bin/
+
+RUN useradd --shell /bin/bash -m waggle
 
 EXPOSE 22
 EXPOSE 2201
