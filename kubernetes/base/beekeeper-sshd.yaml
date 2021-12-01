@@ -91,6 +91,13 @@ spec:
       containers:
       - image: waggle/beekeeper-sshd:latest
         name: beekeeper-sshd
+        resources:
+          limits:
+            cpu: "8000m"
+            memory: "12Gi"
+          requests:
+            cpu: "2000m"
+            memory: "4Gi"
         volumeMounts:
           - name: ca-secret
             mountPath: "/usr/lib/waggle/certca/"
@@ -111,6 +118,12 @@ spec:
             mountPath: /root/.ssh/authorized_keys
             subPath: admin.pem.pub
             readOnly: true
+          - name: waggle-authorized-keys
+            mountPath: /home/waggle/ssh-template/authorized_keys
+            subPath: authorized_keys
+            readOnly: false
+
+
         env:
         - name: KEY_GEN_TYPE
           valueFrom:
@@ -172,3 +185,8 @@ spec:
           - key: beekeeper_ca_key.pub
             path: beekeeper_ca_key.pub
 
+      - name: waggle-authorized-keys
+        configMap:
+          name: waggle-authorized-keys
+          optional: true
+          defaultMode: 0600
