@@ -11,6 +11,8 @@ if [ -e /home/waggle/ssh-template/authorized_keys ] ; then
   chown waggle:waggle /home/waggle/.ssh/authorized_keys
 fi
 
+
+
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 
 exit 0
