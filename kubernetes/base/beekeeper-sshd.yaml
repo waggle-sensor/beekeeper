@@ -122,7 +122,9 @@ spec:
             mountPath: /home/waggle/ssh-template/authorized_keys
             subPath: authorized_keys
             readOnly: false
-
+          - name: optional-init-script
+            mountPath: /entrypoint-config/run.sh
+            subPath: run.sh
 
         env:
         - name: KEY_GEN_TYPE
@@ -190,3 +192,9 @@ spec:
           name: waggle-authorized-keys
           optional: true
           defaultMode: 0600
+
+      - name: optional-init-script
+        configMap:
+          name: beekeeper-sshd-init-script
+          optional: true
+          defaultMode: 0700
