@@ -87,6 +87,10 @@ spec:
             mountPath: /config/admin-key/admin.pem
             subPath: admin.pem
             readOnly: true
+          - name: node-private-git-repo-key
+            mountPath: /config/node-private-git-repo-key/node-private-git-repo-key
+            subPath: node-private-git-repo-key
+            readOnly: true
         envFrom:
           - configMapRef:
               name: beekeeper-api-config
@@ -115,5 +119,8 @@ spec:
         secret:
           defaultMode: 0400
           secretName: beekeeper-sshd-authorized-keys-secret
-
+      - name: node-private-git-repo-key
+        secret:
+          defaultMode: 0400
+          secretName: node-private-git-repo-key
       restartPolicy: Always

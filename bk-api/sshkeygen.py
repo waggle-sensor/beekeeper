@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(handler)
 
 
-def run_command_communicate(command, input_str):
+def run_command_communicate(command, input_str=None):
     import subprocess
 
     try:

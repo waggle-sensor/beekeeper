@@ -1,5 +1,24 @@
 #!/bin/bash
 
+
+
+# fix permissions for guest account "waggle"
+
+if [ -e /home/waggle/ssh-template/authorized_keys ] ; then
+  mkdir -p /home/waggle/.ssh
+  chown waggle:waggle /home/waggle/.ssh
+  cp /home/waggle/ssh-template/authorized_keys /home/waggle/.ssh
+  chown waggle:waggle /home/waggle/.ssh/authorized_keys
+fi
+
+
+
+/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+
+exit 0
+
+
+
 # Using a admin user did not work, it did not have file permisison to access the reverse ssh tuinnel socket.
 #if ! id "admin" &>/dev/null; then
 #
@@ -133,6 +152,9 @@ if [ ${INFINITE_WAIT} -eq 1 ] ; then
     sleep infinity
     exit 1
 fi
+
+
+
 
 set -x
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

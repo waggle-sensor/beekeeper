@@ -21,7 +21,7 @@ import sys
 import time
 import requests
 import json
-
+from os.path import exists
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -98,9 +98,24 @@ def setup_app():
 
         _add_user(user)
 
+    run_membership_script()
+
     return
 
 
+def run_membership_script():
+    #entrypoints for this function are the API (addUser) and start of the container
+
+    membership_script = "/entrypoint-config/run.sh"
+    if exists(membership_script):
+        cmd = [membership_script]
+        result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+        if result.returncode == 0:
+            logger.info(f"{membership_script} run successfully")
+        else:
+            logger.error(f"{membership_script} had an error")
+        # ignore output for now
+    return
 
 def _user_exists(user):
     """Test if the user `user` exists in the system
@@ -257,6 +272,9 @@ def adduser():
     except Exception as e:
         logger.error(e)
         return "Error: unable to add user [{}]".format(user), 500
+
+    run_membership_script()
+
 
     #try:
         # save the user's keys

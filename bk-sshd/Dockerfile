@@ -5,6 +5,8 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
+# docker build -t waggle/beekeeper-sshd:latest .
+
 # note: this base image should be the same as used in bk-api
 FROM ubuntu:20.04
 #FROM ubuntu:18.04
@@ -41,16 +43,20 @@ RUN sed -i -e 's/#Port .*/Port 22\nPort 2201/' \
     -e 's/^.\?PermitRootLogin.*/PermitRootLogin prohibit-password/' \
     -e 's/^.\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' \
     -e 's/^.\?PasswordAuthentication.*/PasswordAuthentication no/' \
-    -e 's/^.\?UsePAM.*/UsePAM no/' \
+    -e 's/^.\?UsePAM.*/UsePAM yes/' \
     -e 's/^.\?LogLevel.*/LogLevel VERBOSE/' \
     /etc/ssh/sshd_config
 
+# UsePAM is needed for guest account
 
 RUN echo "HostKey           /usr/lib/waggle/bk-server/beekeeper_server_key" >> /etc/ssh/sshd_config
 RUN echo "HostCertificate   /usr/lib/waggle/bk-server/beekeeper_server_key-cert.pub" >> /etc/ssh/sshd_config
 RUN echo "TrustedUserCAKeys /usr/lib/waggle/certca/beekeeper_ca_key.pub" >> /etc/ssh/sshd_config
 
+# AuthorizedKeysFile is needed for guest account
+RUN echo "AuthorizedKeysFile     .ssh/authorized_keys" >> /etc/ssh/sshd_config
 RUN echo "StreamLocalBindUnlink yes" >> /etc/ssh/sshd_config
+RUN echo "StreamLocalBindMask 0117" >> /etc/ssh/sshd_config
 RUN echo "AllowStreamLocalForwarding remote" >> /etc/ssh/sshd_config
 RUN echo "ClientAliveInterval 60" >> /etc/ssh/sshd_config
 
@@ -65,8 +71,11 @@ COPY ROOTFS/ /
 COPY /entrypoint.sh /
 COPY bin/* /usr/local/bin/
 
+RUN useradd --shell /bin/bash -m waggle
+
 EXPOSE 22
+EXPOSE 2201
 #CMD ["/usr/bin/supervisord"]
 #CMD ["/entrypoint.sh"]
-#ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT ["/entrypoint.sh"]
+#CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
