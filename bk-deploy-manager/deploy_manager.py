@@ -85,7 +85,11 @@ def try_wes_deployment(candidates):
         node_id = n["id"]
         # curl localhost:5000/node/0000000000000001 -d '{"deploy_wes": true}'
         d_url = f"{BEEKEEPER_URL}/node/{node_id}"
-        resp = requests.post(d_url, json={"deploy_wes": True})
+        try:
+            resp = requests.post(d_url, json={"deploy_wes": True})
+        except Exception as e:
+            logging.error(f"error: 'deploy_wes' post exception: {str(e)}")
+            continue
         if resp.status_code != 200:
             logging.error(d_url)
             logging.error(
