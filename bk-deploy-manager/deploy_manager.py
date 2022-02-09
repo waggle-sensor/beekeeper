@@ -61,76 +61,58 @@ def get_candidates():
             candidates.append(n)
             continue
 
-        if False:
-            ts = parseTime(n["wes_deploy_event"])
-
-            ts_diff = datetime.datetime.utcnow() - ts
-            if ts_diff.days >= 60:  # ???? check with others
-                print(
-                    f"scheduling node {node_id} for wes deployment (reason: no recent deployment)"
-                )
-                candidates.append(n)
-                continue
-
         logging.info(f"node {node_id} needs no deployment")
 
     return candidates
 
 
 def try_wes_deployment(candidates):
-
     success_count = 0
 
-    for n in candidates:
-        node_id = n["id"]
-        # curl localhost:5000/node/0000000000000001 -d '{"deploy_wes": true}'
-        d_url = f"{BEEKEEPER_URL}/node/{node_id}"
+    for candidate in candidates:
         try:
-            resp = requests.post(d_url, json={"deploy_wes": True})
-        except Exception as e:
-            logging.error(f"error: 'deploy_wes' post exception: {str(e)}")
-            continue
-        if resp.status_code != 200:
-            logging.error(d_url)
-            logging.error(
-                f"Something went wrong: status_code: {resp.status_code} body: {resp.text}"
-            )
-        result = resp.json()
-        if not "success" in result:
-            logging.error(d_url)
-            logging.error(
-                f"Something went wrong: status_code: {resp.status_code} body: {resp.text}"
-            )
-        if not result["success"]:
-            logging.error(d_url)
-            logging.error(
-                f"Something went wrong: status_code: {resp.status_code} body: {resp.text}"
-            )
-
-        success_count += 1
+            deploy_wes_to_candidate(candidate)
+            success_count += 1
+        except KeyboardInterrupt:
+            return
+        except Exception:
+            logging.exception("deploy_wes_to_candidate failed")
         time.sleep(2)
 
     logging.info(f"{success_count} out of {len(candidates)} successful.")
     logging.info("done")
 
-    return
+
+def deploy_wes_to_candidate(candidate):
+    node_id = candidate["id"]
+    url = f"{BEEKEEPER_URL}/node/{node_id}"
+    resp = requests.post(url, json={"deploy_wes": True})
+    resp.raise_for_status()
+    result = resp.json()
+    if not result.get("success"):
+        raise ValueError(f"Something went wrong: url: {url} status_code: {resp.status_code} body: {resp.text}")
 
 
-logging.info("Starting...")
-while True:
+def main():
+    logging.info("Starting...")
+    while True:
 
-    candidates = []
-    try:
-        candidates = get_candidates()
-    except Exception as e:
-        logging.error(f"error: get_candidates returned: {str(e)}")
+        candidates = []
+        try:
+            candidates = get_candidates()
+        except Exception as e:
+            logging.error(f"error: get_candidates returned: {str(e)}")
 
-    if len(candidates) == 0:
-        logging.info("no candidates for wes deployment found")
-    else:
-        logging.info("candidates:")
-        logging.info(candidates)
-        try_wes_deployment(candidates)
+        if len(candidates) == 0:
+            logging.info("no candidates for wes deployment found")
+        else:
+            logging.info("candidates:")
+            logging.info(candidates)
+            try_wes_deployment(candidates)
 
-    logging.info("waiting 5 minutes...")
-    time.sleep(5 * 60)
+        logging.info("waiting 5 minutes...")
+        time.sleep(5 * 60)
+
+
+if __name__ == "__main__":
+    main()
