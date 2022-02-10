@@ -1,33 +1,22 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: beekeeper-api-config
-data:
-  MYSQL_HOST: mysql
-  MYSQL_DATABASE: Beekeeper
-  MYSQL_USER: beekeeper
-  BEEKEEPER_SSHD_API: http://beekeeper-sshd-api/
-  BEEKEEPER_SSHD_HOST: beekeeper-sshd-adminssh
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: beekeeper-api
   #annotations:
-    #kubernetes.io/ingress.class: traefik
-    #traefik.ingress.kubernetes.io/rewrite-target: /state
+  #kubernetes.io/ingress.class: traefik
+  #traefik.ingress.kubernetes.io/rewrite-target: /state
 spec:
   rules:
-  #- host: <use overlay to defined this>
-  - http:
-      paths:
-      - path: /api/state
-        pathType: Prefix
-        backend:
-          service:
-            name: beekeeper-api
-            port:
-              number: 5000
+    #- host: <use overlay to defined this>
+    - http:
+        paths:
+          - path: /api/state
+            pathType: Prefix
+            backend:
+              service:
+                name: beekeeper-api
+                port:
+                  number: 5000
 ---
 apiVersion: v1
 kind: Service
@@ -40,10 +29,10 @@ spec:
     k8s-app: beekeeper-api
   type: ClusterIP
   ports:
-  - name: beekeeper-api
-    port: 5000
-    protocol: TCP
-    targetPort: 5000
+    - name: beekeeper-api
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -64,63 +53,63 @@ spec:
         k8s-app: beekeeper-api
     spec:
       containers:
-      - name: deploy-manager
-        image: waggle/beekeeper-deploy-manager
-        resources:
-          limits:
-            cpu: 2
-            memory: "1Gi"
-        env:
-          - name: BEEKEEPER_URL
-            value: http://beekeeper-api:5000
-      - name: beekeeper-api
-        image: waggle/beekeeper-api:latest
-        volumeMounts:
-          - name: ca-secret
-            mountPath: "/usr/lib/waggle/certca/"
-            readOnly: true
-          - name: nodes-secret
-            mountPath: "/config/nodes/nodes.pem"
-            subPath: nodes.pem
-            readOnly: true
-          - name: admin-key
-            mountPath: /config/admin-key/admin.pem
-            subPath: admin.pem
-            readOnly: true
-          - name: node-private-git-repo-key
-            mountPath: /config/node-private-git-repo-key/node-private-git-repo-key
-            subPath: node-private-git-repo-key
-            readOnly: true
-        envFrom:
-          - configMapRef:
-              name: beekeeper-api-config
-          - configMapRef:
-              name: beekeeper-config
-          - secretRef:
-              name: beekeeper-api-secret
-        resources:
-          limits:
-            cpu: 4
-            memory: "1Gi"
-        ports:
-          - name: api
-            containerPort: 5000
+        - name: deploy-manager
+          image: waggle/beekeeper-deploy-manager
+          resources:
+            limits:
+              cpu: 2
+              memory: "1Gi"
+          env:
+            - name: BEEKEEPER_URL
+              value: http://beekeeper-api:5000
+        - name: beekeeper-api
+          image: waggle/beekeeper-api:latest
+          volumeMounts:
+            - name: ca-secret
+              mountPath: "/usr/lib/waggle/certca/"
+              readOnly: true
+            - name: nodes-secret
+              mountPath: "/config/nodes/nodes.pem"
+              subPath: nodes.pem
+              readOnly: true
+            - name: admin-key
+              mountPath: /config/admin-key/admin.pem
+              subPath: admin.pem
+              readOnly: true
+            - name: node-private-git-repo-key
+              mountPath: /config/node-private-git-repo-key/node-private-git-repo-key
+              subPath: node-private-git-repo-key
+              readOnly: true
+          envFrom:
+            - configMapRef:
+                name: beekeeper-api-config
+            - configMapRef:
+                name: beekeeper-config
+            - secretRef:
+                name: beekeeper-api-secret
+          resources:
+            limits:
+              cpu: 4
+              memory: "1Gi"
+          ports:
+            - name: api
+              containerPort: 5000
 
       volumes:
-      - name: ca-secret
-        secret:
-          secretName: beekeeper-sshd-ca-secret
-          defaultMode: 0400
-      - name: nodes-secret
-        secret:
-          secretName: beekeeper-api-nodes-secret
-          defaultMode: 0400
-      - name: admin-key
-        secret:
-          defaultMode: 0400
-          secretName: beekeeper-sshd-authorized-keys-secret
-      - name: node-private-git-repo-key
-        secret:
-          defaultMode: 0400
-          secretName: node-private-git-repo-key
+        - name: ca-secret
+          secret:
+            secretName: beekeeper-sshd-ca-secret
+            defaultMode: 0400
+        - name: nodes-secret
+          secret:
+            secretName: beekeeper-api-nodes-secret
+            defaultMode: 0400
+        - name: admin-key
+          secret:
+            defaultMode: 0400
+            secretName: beekeeper-sshd-authorized-keys-secret
+        - name: node-private-git-repo-key
+          secret:
+            defaultMode: 0400
+            secretName: node-private-git-repo-key
       restartPolicy: Always
