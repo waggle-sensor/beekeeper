@@ -42,7 +42,7 @@ jobs:
           push: true
           tags: waggle/beekeeper-deploy-manager:${{ env.RELEASE_VERSION }}
 
-      - name: Build and push Beekeeper Deploy Manager
+      - name: Build and push Beekeeper sshd
         uses: docker/build-push-action@v2
         with:
           context: bk-sshd
