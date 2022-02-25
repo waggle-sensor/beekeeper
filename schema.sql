@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_log (
 CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     `id`                    VARCHAR(16) NOT NULL,  /*  typically MAC address of the "main" device  */
     `timestamp`             TIMESTAMP(0) NOT NULL,
+    `vsn`                   VARCHAR(64),
     `name`                  VARCHAR(64),
     `project_id`            VARCHAR(64),
     `mode`                  VARCHAR(64),

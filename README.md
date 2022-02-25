@@ -51,6 +51,7 @@ This will only work once node has registered.
 ```bash
 curl localhost:5000/node/0000000000000001 -d '{"assign_beehive": "my-beehive"}'
 curl localhost:5000/node/0000000000000001 -d '{"deploy_wes": true}'
+curl localhost:5000/node/0000000000000001 -d '{"vsn": true}'
 ```
 
 Check the logs:
