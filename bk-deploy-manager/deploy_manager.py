@@ -52,6 +52,10 @@ def get_candidates():
         wes_deploy_event = n.get("wes_deploy_event")
         # print("id: "+node_id)
         # print("wes_deploy_event: "+n["wes_deploy_event"])
+        if registration_event in ["", None]:
+            logging.info("node %s is not registered", node_id)
+            continue
+
         if n.get("beehive") in ["", None]:
             logging.info(f"node {node_id} does not belong to a beehive")
             continue
