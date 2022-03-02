@@ -48,15 +48,17 @@ def get_candidates():
 
     for n in nodes["data"]:
         node_id = n["id"]
+        registration_event = n.get("registration_event")
+        wes_deploy_event = n.get("wes_deploy_event")
         # print("id: "+node_id)
         # print("wes_deploy_event: "+n["wes_deploy_event"])
         if n.get("beehive") in ["", None]:
             logging.info(f"node {node_id} does not belong to a beehive")
             continue
 
-        if n.get("wes_deploy_event") in ["", None]:
+        if wes_deploy_event in ["", None] or parseTime(registration_event) >= parseTime(wes_deploy_event):
             logging.info(
-                f"scheduling node {node_id} for wes deployment (reason: no previous deployment)"
+                f"scheduling node {node_id} for wes deployment (reason: no previous deployment or re-registered node)"
             )
             candidates.append(n)
             continue
