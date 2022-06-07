@@ -1,7 +1,7 @@
 # Beekeeper Server
 
-The beekeeper server is the administration server for the SAGE cyberinfrastructure.
-All nodes must register with the beekeeper in order to be added to the SAGE ecosystem.
+The beekeeper server is the administration server for the cyberinfrastructure.
+All nodes must register with the beekeeper in order to be added to the ecosystem.
 
 The beekeeper is responsible for the following:
 1. front end for provisioning and administrative management of all nodes
