@@ -585,7 +585,7 @@ def scp(source, node_id, target):
 
 
 
-def node_ssh(node_id, command, input_str=None,quiet_mode=False):
+def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
     ssh_cmd =  ["ssh",
                 #"-tt",
@@ -926,7 +926,7 @@ def register_add_vsn_event(node_id,field_value, lock_tables=True, lock_requested
 def add_vsn(node_id):
     command = "cat /etc/waggle/vsn"
     try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command,quiet_mode=True)
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command, quiet_mode=True)
         logger.debug(f"(add_vsn) vsn on node: {result_stdout_str}")
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
