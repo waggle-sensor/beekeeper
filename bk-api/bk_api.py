@@ -916,7 +916,6 @@ def register_add_vsn_event(node_id,field_value, lock_tables=True, lock_requested
     payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert", 
                 "field_name": "vsn", "field_value": field_value}
 
-    #url = f'{BEEKEEPER_DB_API}/log'
     try:
         insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
     except Exception as e:
