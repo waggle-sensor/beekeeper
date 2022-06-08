@@ -143,9 +143,9 @@ def test_vsn_insert(client):
     #Check that the initial value is null
     rv = client.get(f'/state/0000000000000001')
     result_before_vsn = rv.get_json()
-    d_before_vsn = result_before_vsn["data"]["vsn"]
     assert 'error' not in result_before_vsn
     assert 'data' in result_before_vsn
+    d_before_vsn = result_before_vsn["data"]["vsn"]
     assert None == d_before_vsn
     #Check that we can populate vsn
     data = {"vsn": True}
