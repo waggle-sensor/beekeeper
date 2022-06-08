@@ -940,7 +940,7 @@ def add_vsn(node_id):
         raise Exception(f"vsn invalid type")
 
     try:
-        register_add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn")
+        register_add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn_retrieval")
     except Exception as e:
         raise Exception(f"add_vsn_event_failed failed: {str(e)}")
     return {"success":True}
