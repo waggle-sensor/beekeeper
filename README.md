@@ -114,6 +114,12 @@ Requires running docker-compose enviornment.
 
 ### Access MySQL Console
 
-```bash
+```sh
 docker-compose exec db mysql -u root -ptesttest -D Beekeeper
+```
+
+### Access Shell on Test Node
+
+```sh
+docker-compose exec node1 bash
 ```
