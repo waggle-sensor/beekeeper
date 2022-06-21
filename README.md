@@ -12,12 +12,34 @@ communication keys used by the nodes (i.e. services running on them)
 
 ## start beekeeper
 
+The docker-compose file has override values for different local dev environments. 
+
+Here is a list of files:
+1. `docker-compose.vm.yml`: overrides node1 service with a vm cloned repo (manually by the user).
+
+Setup for each override docker-compose `.yml` file (same enumeration as above):
+1. Setup
+    ```
+    git clone git@github.com:iperezx/node-platforms.git
+    ```
+
+Generate keys:
 ```bash
 ./create-keys.sh init --nopassword
 ./create-keys.sh cert untilforever forever
-docker-compose up --build
 ```
 Note: Options above like `--nopassword` and `forever` should not be used in production.
+
+Start beekeeper with no overriden values:
+```
+docker-compose up --build
+```
+
+Start beekeeper with overriden values depending on the use-case:
+1. Setup
+    ```
+    docker-compose -f docker-compose.yml -f docker-compose.vm.yml up --build
+    ```
 
 # Register a beehive with beekeeper (example)
 

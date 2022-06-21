@@ -1,0 +1,10 @@
+version: '3.7'
+services:
+  node1:
+    image: waggle/node-platforms:latest
+    build: 
+      context: node-platforms/vm
+      dockerfile: Dockerfile
+      args:
+        - VSN
+        - NODE_ID
