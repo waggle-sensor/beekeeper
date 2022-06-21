@@ -59,6 +59,12 @@ class BeekeeperDB():
         self.cur.close()
         self.db.close()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
     def nodes_log_add(self, logData, lock_tables=True, lock_requested_by="", replay=True):
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'

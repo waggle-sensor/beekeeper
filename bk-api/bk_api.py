@@ -370,45 +370,40 @@ def _register(node_id):
 
 
 def create_beehive_files(beehive_obj):
+    beehive_dir = os.path.join(beehives_root, beehive_obj["id"])
 
-
-    #if not os.path.exists(beehives_root):
-    #    os.makedirs(beehives_root)
-
-    beehive_id =  beehive_obj["id"]
-    beehive_dir = os.path.join(beehives_root, beehive_id )
     beehive_dir_ssh = os.path.join(beehive_dir , "ssh")
+    os.makedirs(beehive_dir_ssh, exist_ok=True)
+    os.chmod(beehive_dir_ssh, 0o700)
+
     beehive_dir_tls = os.path.join(beehive_dir , "tls")
-    if not os.path.exists(beehive_dir_ssh):
-        os.makedirs(beehive_dir_ssh)
-    if not os.path.exists(beehive_dir_tls):
-        os.makedirs(beehive_dir_tls)
+    os.makedirs(beehive_dir_tls, exist_ok=True)
+    os.chmod(beehive_dir_tls, 0o700)
 
     # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
-    files = {   "tls/cakey.pem": "tls-key",
-                "tls/cacert.pem": "tls-cert",
-                "ssh/ca" : "ssh-key",
-                "ssh/ca.pub" : "ssh-pub",
-                "ssh/ca-cert.pub" :  "ssh-cert"}
+    files = {
+        "tls-key": "tls/cakey.pem",
+        "tls-cert": "tls/cacert.pem",
+        "ssh-key": "ssh/ca",
+        "ssh-pub": "ssh/ca.pub",
+        "ssh-cert": "ssh/ca-cert.pub",
+    }
 
-    for file in files:
-        full_filename = os.path.join(beehive_dir, file )
-
+    for key, filename in files.items():
+        full_filename = os.path.join(beehive_dir, filename)
         if os.path.exists(full_filename):
             continue
 
-        key = files[file]
-        data = beehive_obj.get(key, "")
-        if not data:
+        try:
+            data = beehive_obj[key]
+        except KeyError:
             obj_str = ",".join(beehive_obj.keys())
             raise Exception(f"Data for beehive not found ({key}) (got: {obj_str})")
+
         with open(full_filename, 'a') as cert_file:
             cert_file.write(data)
 
         os.chmod(full_filename, 0o600)
-
-
-    return
 
 # /
 class Root(MethodView):
@@ -979,7 +974,6 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
     return
 
 def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
-
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
@@ -1153,8 +1147,6 @@ class Beehives(MethodView):
 
     # get beehive object including all credentials
     def get(self, beehive_id):
-
-
         bee_db = BeekeeperDB()
         obj = bee_db.get_beehive(beehive_id)
         if not obj:
@@ -1168,8 +1160,6 @@ class Beehives(MethodView):
     # configure beehive credentials
     # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
     def post(self, beehive_id):
-
-
         expected_forms = ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]
 
         count_updated = 0
@@ -1220,17 +1210,35 @@ class Beehives(MethodView):
 
 
     def delete(self, beehive_id):
-
         bee_db = BeekeeperDB()
         result = bee_db.delete_object("beehives", "id", beehive_id )
         bee_db.close()
         return jsonify({"deleted": result})
 
 
+class BeehiveTLSCredentials(MethodView):
+
+    def post(self, beehive_id, service):
+        with BeekeeperDB() as db:
+            beehive_obj = db.get_beehive(beehive_id)
+
+        # make sure /beehives/... files exist
+        try:
+            create_beehive_files(beehive_obj)
+        except Exception as e:
+            raise Exception(f"create_beehive_files returned: {type(e)}: {str(e)}")
+
+        tls_ca_path = os.path.join(beehives_root, beehive_id, "tls", "cakey.pem")
+        tls_ca_cert_path = os.path.join(beehives_root, beehive_id, "tls", "cacert.pem")
+
+        keygen = SSHKeyGen(deleteDirectory=False)
+
+        result = keygen.create_service_tls_credentials(tls_ca_path, tls_ca_cert_path, service)
+        return jsonify(result)
+
+
 class Credentials(MethodView):
     def get(self, node_id):
-
-
         try:
 
             bee_db = BeekeeperDB()
@@ -1323,7 +1331,6 @@ class Registration(MethodView):
 
         logger.debug("Register user [{}]".format(node_id))
 
-
         if DEFAULT_BEEHIVE:
             # first check the default beehive exists
             try:
@@ -1371,8 +1378,6 @@ class Registration(MethodView):
         return registration_result
 
 
-
-
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
@@ -1392,6 +1397,8 @@ app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('creden
 app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
 app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
 app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
+app.add_url_rule('/beehives/<beehive_id>/tls-credentials/<service>', view_func=BeehiveTLSCredentials.as_view('beehivesTLSCredentials'))
+# TODO(sean) add ssh credentials endpoint
 
 # this is where nodes register
 app.add_url_rule('/register', view_func=Registration.as_view('registration'))

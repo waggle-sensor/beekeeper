@@ -218,9 +218,10 @@ class SSHKeyGen:
 
         return { "certificate": certificate, "user": user}
     
-    def create_server_tls_credentials(self, tls_ca_path, tls_ca_cert_path, name):
-        # v likely to have a conflict between beehives...
-        # can we do this without writing to disk???
+    def create_service_tls_credentials(self, tls_ca_path, tls_ca_cert_path, name):
+        """
+        Returns a newly generated TLS key / cert for a Beehive service.
+        """
         basedir = Path(self.base_dir_name, "beehives")
         basedir.mkdir(parents=True, exist_ok=True)
 
@@ -253,9 +254,7 @@ class SSHKeyGen:
         ])
 
         return {
-            "user": name,
             "keyfile": Path(keyfile).read_text(),
-            "csrfile": Path(csrfile).read_text(),
             "certfile": Path(certfile).read_text(),
         }
 
@@ -295,6 +294,5 @@ class SSHKeyGen:
         return {
             "user": name,
             "keyfile": Path(keyfile).read_text(),
-            "csrfile": Path(csrfile).read_text(),
             "certfile": Path(certfile).read_text(),
         }
