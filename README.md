@@ -134,7 +134,14 @@ Requires running docker-compose enviornment.
 
 ## Development
 
-Access MySQL
-```bash
-docker exec -ti  beekeeper_db_1 mysql -u root -ptesttest -D Beekeeper
+### Access MySQL Console
+
+```sh
+docker-compose exec db mysql -u root -ptesttest -D Beekeeper
+```
+
+### Access Shell on Test Node
+
+```sh
+docker-compose exec node1 bash
 ```
