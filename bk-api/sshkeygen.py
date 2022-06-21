@@ -13,10 +13,9 @@ ANL:waggle-license
 import logging
 import tempfile
 import os
-import subprocess as sp
+import subprocess
 import sys
-from typing import runtime_checkable
-import pathlib
+from pathlib import Path
 
 formatter = logging.Formatter(
     "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
@@ -29,8 +28,6 @@ logger.addHandler(handler)
 
 
 def run_command_communicate(command, input_str=None):
-    import subprocess
-
     try:
         p = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     except Exception as e:
@@ -47,11 +44,10 @@ def run_command_communicate(command, input_str=None):
 
 
 def run_command(cmd, return_stdout=False):
-
     cmd_str = " ".join(cmd)
     logger.debug(f"Executing: {cmd_str}")
 
-    result = sp.run(cmd, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True)
 
 
     if result.returncode != 0:
@@ -71,7 +67,7 @@ def run_command(cmd, return_stdout=False):
 
 
 class SSHKeyGen:
-    """Create ssh key-pairs and certificates"""
+    """SSHKeyGen creates ssh key-pairs and certificates."""
 
     base_dir = None
     base_dir_name = ""
@@ -136,16 +132,9 @@ class SSHKeyGen:
 
 
         public_key_file = os.path.join(self.base_dir_name, f"{node_id}.pub")
+
         with open(public_key_file, "w") as fp:
             fp.write(public_key)
-
-        return
-
-
-
-
-
-
 
     def create_reverse_tunnel_certificate(self, name, ca_path):
         """Create the certificate from the key-pair. Key-pair must be created first.
@@ -228,56 +217,84 @@ class SSHKeyGen:
             certificate = cert_key.read()
 
         return { "certificate": certificate, "user": user}
+    
+    def create_server_tls_credentials(self, tls_ca_path, tls_ca_cert_path, name):
+        # v likely to have a conflict between beehives...
+        # can we do this without writing to disk???
+        basedir = Path(self.base_dir_name, "beehives")
+        basedir.mkdir(parents=True, exist_ok=True)
 
-    def create_node_tls_certificate(self, tls_ca_path, tls_ca_cert_path, name):
+        keyfile = Path(basedir, name+'.key.pem').absolute()
+        csrfile = Path(basedir, name+'.csr.pem').absolute()
+        certfile = Path(basedir, name+'.cert.pem').absolute()
 
-        keyfile = os.path.join(self.base_dir_name, name+'.key.pem')  # output
-        csrfile = os.path.join(self.base_dir_name, name+'.csr.pem')
-        certfile = os.path.join(self.base_dir_name, name+'.cert.pem') # output
-
-        # create key and signing request in one step
-
-        cmd = [
+        run_command([
             "openssl",
             "req",
             "-new",
             "-nodes",
             "-newkey", "rsa:4096",
-            "-keyout", keyfile,
-            "-out" , csrfile,
+            "-keyout", str(keyfile),
+            "-out" , str(csrfile),
             "-subj", f'/CN={name}'
-            ]
+        ])
 
-        run_command(cmd)
-
-        # sign request using ca
-        #openssl x509 -req \
-        #    -in "$csrfile" -out "$certfile" \
-        #    -CAkey "$CAKEYFILE" -CA "$CACERTFILE" -CAcreateserial \
-        #    -sha256 -days 365
-
-        cmd = [
+        run_command([
             "openssl",
             "x509",
             "-req",
-            "-in",  csrfile,
-            "-out", certfile,
-            "-CAkey", tls_ca_path,
-            "-CA", tls_ca_cert_path,
+            "-in",  str(csrfile),
+            "-out", str(certfile),
+            "-CAkey", str(tls_ca_path),
+            "-CA", str(tls_ca_cert_path),
             "-CAcreateserial",
             "-sha256",
             "-days", "365"
-        ]
+        ])
 
-        run_command(cmd)
+        return {
+            "user": name,
+            "keyfile": Path(keyfile).read_text(),
+            "csrfile": Path(csrfile).read_text(),
+            "certfile": Path(certfile).read_text(),
+        }
 
-        # collect outputs
+    def create_node_tls_certificate(self, tls_ca_path, tls_ca_cert_path, name):
+        # these certificates should be more short lived and renewing them should be easy.
+        basedir = Path(self.base_dir_name, "nodes")
+        basedir.mkdir(parents=True, exist_ok=True)
 
-        result = {}
+        keyfile = Path(basedir, name+'.key.pem').absolute()
+        csrfile = Path(basedir, name+'.csr.pem').absolute()
+        certfile = Path(basedir, name+'.cert.pem').absolute()
 
-        result["keyfile"] = pathlib.Path(keyfile).read_text()
-        result["certfile"] = pathlib.Path(certfile).read_text()
-        result["user"] = name
+        run_command([
+            "openssl",
+            "req",
+            "-new",
+            "-nodes",
+            "-newkey", "rsa:4096",
+            "-keyout", str(keyfile),
+            "-out" , str(csrfile),
+            "-subj", f'/CN={name}'
+        ])
 
+        run_command([
+            "openssl",
+            "x509",
+            "-req",
+            "-in",  str(csrfile),
+            "-out", str(certfile),
+            "-CAkey", str(tls_ca_path),
+            "-CA", str(tls_ca_cert_path),
+            "-CAcreateserial",
+            "-sha256",
+            "-days", "365"
+        ])
 
-        return result
+        return {
+            "user": name,
+            "keyfile": Path(keyfile).read_text(),
+            "csrfile": Path(csrfile).read_text(),
+            "certfile": Path(certfile).read_text(),
+        }
