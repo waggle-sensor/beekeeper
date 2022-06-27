@@ -20,7 +20,7 @@ Here is a list of files:
 Setup for each override docker-compose `.yml` file (same enumeration as above):
 1. Setup
     ```
-    git clone git@github.com:iperezx/node-platforms.git
+    git clone git@github.com:waggle-sensor/node-platforms.git
     ```
 
 Generate keys:
