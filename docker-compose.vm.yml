@@ -6,5 +6,21 @@ services:
       context: node-platforms/vm
       dockerfile: Dockerfile
       args:
-        - VSN
-        - NODE_ID
+        VSN: vsn1
+        NODE_ID: "0000000000000001"
+
+  node2:
+    image: waggle/node-platforms:latest
+    build:
+      context: node-platforms/vm
+      dockerfile: Dockerfile
+      args:
+        VSN: vsn2
+        NODE_ID: "0000000000000002"
+    volumes:
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
+      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
+      # for /etc/ssh/ssh_known_hosts:
+      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
+      # so beekeeper can ssh into it:
+      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
