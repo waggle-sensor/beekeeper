@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   node1:
-    image: waggle/node-platforms:latest
+    image: waggle/node-platforms:node1
     build: 
       context: node-platforms/vm
       dockerfile: Dockerfile
@@ -10,7 +10,7 @@ services:
         NODE_ID: "0000000000000001"
 
   node2:
-    image: waggle/node-platforms:latest
+    image: waggle/node-platforms:node2
     build:
       context: node-platforms/vm
       dockerfile: Dockerfile
