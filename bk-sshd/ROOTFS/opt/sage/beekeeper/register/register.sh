@@ -15,8 +15,7 @@ if [ -e /config/BEEKEEPER_REGISTER_API ]; then
 fi
 
 # process args baked into authorized command
-# TODO(sean) make part of configmap
-beehive="beehive-sage"
+beehive=""
 
 while getopts "b:" opt; do
   case "${opt}" in
@@ -32,7 +31,14 @@ case "${command}" in
   register)
     node="${user_args[1]}"
     echo "registering ${node} with ${beehive}"
-    curl -s -X GET "${bk_register_url}/register?id=${node}&beehive=${beehive}"
+
+    params="node_id=${node}"
+
+    if [ ! -z "${beehive}" ]; then
+      params="${params}&beehive_id=${beehive}"
+    fi
+
+    curl -s -X GET "${bk_register_url}/register?${params}"
     ;;
   *)
     echo "invalid command: ${command}"

@@ -1316,61 +1316,52 @@ class Registration(MethodView):
         Returns:
             dict: end-point id, private key, public key and certificate
         """
-        node_id = request.args.get("id", type=str)
+        logger.info("registration request: %r", request.args)
+
+        node_id = request.args.get("node_id", type=str)
         if not node_id:
-            logger.debug("Registration failed: id missing")
-            return f"Error: id missing\n", 500
+            return f"Error: id missing\n", 400
 
-        logger.debug("Register user [{}]".format(node_id))
+        beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
-
-        if DEFAULT_BEEHIVE:
+        if beehive_id:
             # first check the default beehive exists
             try:
                 bee_db = BeekeeperDB()
-                beehive_obj = bee_db.get_beehive(DEFAULT_BEEHIVE)
+                beehive_obj = bee_db.get_beehive(beehive_id)
                 bee_db.close()
             except Exception as e:
-                raise Exception(f"error: get_beehive returned: {str(e)}")
+                raise Exception(f"error: get_beehive returned: {e}")
 
             if not beehive_obj:
-                raise Exception(f"error: Beehive {DEFAULT_BEEHIVE} is not known yet" )
+                logger.error("registration error: beehive does not exist: %r", request.args)
+                return "Error: beehive not found", 404
 
         try:
             # create keypair and certificates for node (idempotent function)
             registration_result =  _register(node_id)
         except Exception as e:
-            logger.debug(f"_register failed: {str(e)}")
-            traceback.print_exc()
-            logger.debug(f"Error: unable to register id [{node_id} , {str(e)}]")
-            return f"Error: unable to register id [{node_id} , {str(e)}]\n", 500
+            logger.exception("registration error: _register: %r", request.args)
+            return f"Error: unable to register id [{node_id} , {e}]\n", 500
 
         # update beekeeper db (create registartion event)
         try:
             register_node(node_id, lock_requested_by="register-resource")
         except Exception as e:
-            logger.debug(f"Error: Creating registration event failed: {str(e)}")
+            logger.exception("registration error: register_node: %r", request.args)
             return f"Error: Creating registration event failed: {str(e)}", 500
 
-
-        if DEFAULT_BEEHIVE:
+        if beehive_id:
             time.sleep(2) # see if that helps with the locks
-            logger.debug("Adding user [{}] to default beehive".format(node_id))
+            # TODO(sean) Review how locks are used. I'm concerned that a sleep is supposed to "help with the locks".
             try:
-                set_node_beehive(node_id, DEFAULT_BEEHIVE)
+                set_node_beehive(node_id, beehive_id)
             except Exception as e:
-                logger.debug(f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}")
-                # Do not let registration fail because of this
-                return f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}", 500
-        else:
-            logger.debug("No default beehive defined")
+                logger.exception("registration error: set_node_beehive: %r", request.args)
+                return f"Error: Adding node to beehive {beehive_id} failed: {e}", 500
 
-
-        logger.debug(f"success: responding with registration results")
-        #return json.dumps(registration_result)
+        logger.info("registration ok: %r", request.args)
         return registration_result
-
-
 
 
 app = Flask(__name__)
