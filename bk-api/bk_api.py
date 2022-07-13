@@ -1253,9 +1253,6 @@ class Credentials(MethodView):
         return jsonify({"deleted": result_count})
 
 
-
-
-
 #@app.route("/register")
 class Registration(MethodView):
 
@@ -1273,12 +1270,12 @@ class Registration(MethodView):
         logger.info("registration request: %r", request.args)
 
         node_id = request.args.get("node_id", type=str)
-        
+
         if not node_id:
-            return "bad request: node id must be provided.\n", 400
+            return "error: node id must be provided.\n", 400
 
         if not valid_node_id(node_id):
-            return "bad request: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", 400
+            return "error: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", 400
 
         beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
@@ -1293,14 +1290,14 @@ class Registration(MethodView):
 
             if not beehive_obj:
                 logger.error("registration error: beehive does not exist: %r", request.args)
-                return "Error: beehive not found", 404
+                return "error: beehive not found", 404
 
         try:
             # create keypair and certificates for node (idempotent function)
             registration_result = _register(node_id)
         except Exception as e:
             logger.exception("registration error: _register: %r", request.args)
-            return f"Error: unable to register id [{node_id} , {e}]\n", 500
+            return f"error: unable to register id [{node_id} , {e}]\n", 500
 
         # update beekeeper db (create registartion event)
         try:
