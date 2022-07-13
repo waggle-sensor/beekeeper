@@ -254,26 +254,15 @@ def post_node_credentials(node_id, private_key, public_key):
     return
 
 
+def valid_node_id(s):
+    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,32}", s) is not None
+
+
 def _register(node_id):
-    #check_beekeper()
-
-    if not node_id:
-        raise Exception("node_id no defined")
-
-    p = re.compile(f'[A-Z0-9]+', re.ASCII)
-    if not p.fullmatch(node_id):
-        raise Exception("node_id can contain only numbers and upper case characters")
-
-    if len(node_id) < 6:
-        raise Exception("node_id should have at least 6 characters")
-
-    # check if key-pair is available
     try:
         creds = get_node_keypair(node_id)
     except Exception as e:
         raise Exception(f"get_node_keypair returned: {str(e)}")
-
-
 
     key_generator = SSHKeyGen()
 
@@ -284,9 +273,7 @@ def _register(node_id):
             key_generator.write_keys_to_files(node_id, creds["private_key"], creds["public_key"])
         except Exception as e:
             raise Exception(f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}")
-
     else:
-
         # generate new keys sizgned by the CA for custom tunnel to beekeeper
         # create a user somewhere to allow the "node specific user" to connect
         logger.debug("- generate key pair (no credentials in DB yet)")
@@ -304,9 +291,6 @@ def _register(node_id):
         if not key in creds:
             raise Exception(f"{key} is missing")
 
-
-
-
     logger.debug("- generate certificate")
     try:
         cert_obj = key_generator.create_reverse_tunnel_certificate(node_id, CA_FILE) # returns { "certificate": certificate, "user": user}
@@ -318,8 +302,6 @@ def _register(node_id):
 
     data["id"] = user # note that this is ID prefixed with "node_"
     data["certificate"] = cert_obj["certificate"]
-
-
 
     #data = {
     #    "id": key_generator.results["user"], # note that this is ID prfixed with "node_"
@@ -1291,8 +1273,12 @@ class Registration(MethodView):
         logger.info("registration request: %r", request.args)
 
         node_id = request.args.get("node_id", type=str)
+        
         if not node_id:
-            return f"Error: id missing\n", 400
+            return "bad request: node id must be provided.\n", 400
+
+        if not valid_node_id(node_id):
+            return "bad request: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", 400
 
         beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
@@ -1311,7 +1297,7 @@ class Registration(MethodView):
 
         try:
             # create keypair and certificates for node (idempotent function)
-            registration_result =  _register(node_id)
+            registration_result = _register(node_id)
         except Exception as e:
             logger.exception("registration error: _register: %r", request.args)
             return f"Error: unable to register id [{node_id} , {e}]\n", 500

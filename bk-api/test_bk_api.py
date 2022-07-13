@@ -41,6 +41,17 @@ def test_registration(client):
     assert "ssh_key_public" in result
 
 
+def test_registration_missing_node_id(client):
+    r = client.post('/register')
+    assert r.status_code == 400
+
+
+def test_registration_invalid_node_id(client):
+    for node_id in ["SHORT", "NOLOwERCASE", "AVOIDUSING_", "AREALLYREALLYREALLYLONGNODEIDTHATISNOTALLOWED"]:
+        r = client.post(f'/register?node_id={node_id}')
+        assert r.status_code == 400
+
+
 def test_registration_with_specific_beehive(client):
     node_id = f"TEST{randhex(4)}"
     beehive_id = f"test-beehive-{randhex(8)}"

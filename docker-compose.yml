@@ -4,12 +4,6 @@ services:
     image: waggle/beekeeper-sshd:latest
     build: bk-sshd
     restart: always
-    #depends_on:
-    #  - bk-register
-    ports:
-      - "127.0.0.1:20022:22"
-      - "127.0.0.1:2201:2201"
-      - "127.0.0.1:24182:80"
     environment:
         # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
@@ -45,7 +39,6 @@ services:
     env_file: mysql.env
     volumes:
       - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
-      - beekeeper-db:/var/lib/mysql
   node1:
     image: waggle/wes-minimal
     volumes:
@@ -55,9 +48,3 @@ services:
       - ./beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
       # so beekeeper can ssh into it:
       - ./beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
-volumes:
-  #bk-homedirs:
-  beekeeper-db:
-  #bk-secrets:
-  #  external:
-  #    name: beekeeper-config_bk-secrets
