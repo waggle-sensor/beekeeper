@@ -1,27 +1,20 @@
 import bk_api
 import datetime
-import tempfile
 import pytest
-import os
-
 import json
 import io
-import time
+
 
 # from https://flask.palletsprojects.com/en/1.1.x/testing/
 @pytest.fixture
 def client():
+    # TODO(sean) It would be nice to setup a fresh database here, so different unit tests can't affect each other.
+    # For example, we could generate some BeekeeperTestRandomID database and init the tables.
     app = bk_api.app
-    db_fd, app.config['DATABASE'] = tempfile.mkstemp()
-    app.config['TESTING'] = True
-
     with app.test_client() as client:
         #with app.app_context():
         #    init_db()
         yield client
-
-    os.close(db_fd)
-    os.unlink(app.config['DATABASE'])
 
 
 def test_root(client):
@@ -31,15 +24,16 @@ def test_root(client):
 
 def test_registration(client):
     # Do it twice to make sure the code for the cached version is included
-    r = client.get('/register?node_id=FOOBAR')
+    r = client.post('/register?node_id=FOOBAR')
     assert r.status_code == 200
     result = r.get_json()
     assert 'certificate' in result
 
-    r = client.get('/register?node_id=FOOBAR')
+    # TODO(sean) I'm not sure what behavior this is testing. Is it a cached response? Same status code?
+    r = client.post('/register?node_id=FOOBAR')
     assert r.status_code == 200
     result = r.get_json()
-    assert 'certificate'  in result
+    assert 'certificate' in result
 
     r = client.get('/credentials/FOOBAR')
     result = r.get_json()
@@ -48,19 +42,36 @@ def test_registration(client):
 
 
 def test_registration_with_specific_beehive(client):
-    r = client.post('/beehives', data=json.dumps({"id": "test-beehive", "key-type":"rsa-sha2-256"}))
+    node_id = f"TEST{randhex(4)}"
+    beehive_id = f"test-beehive-{randhex(8)}"
 
-    r = client.get('/register?node_id=NODE123&beehive_id=test-beehive')
+    r = client.post('/beehives', data=json.dumps({"id": beehive_id, "key-type":"rsa-sha2-256"}))
+
+    # GET should not be allowed
+    r = client.get(f'/register?node_id={node_id}&beehive_id={beehive_id}')
+    assert r.status_code == 405
+
+    # POST should be allowed
+    r = client.post(f'/register?node_id={node_id}&beehive_id={beehive_id}')
     assert r.status_code == 200
+
+    r = client.get(f'/state/{node_id}')
+    assert r.status_code == 200
+    data = r.get_json()["data"]
+    assert data["beehive"] == beehive_id
+
+    # TODO(sean) This behavior test is somewhat incomplete as it never confirms whether
+    # the credentials match the specified beehive's. (We will catch this during integration
+    # testing for now, though.)
 
 
 def test_registration_with_nonexistant_beehive(client):
-    r = client.get('/register?node_id=NODE123&beehive_id=nonexistant-beehive')
+    node_id = f"NODE{randhex(4)}"
+    r = client.post('/register?node_id=NODE123&beehive_id=nonexistant-beehive')
     assert r.status_code == 404
 
 
 def test_assign_node_to_beehive(client):
-
     # create new beehive
     rv = client.delete('/beehives/test-beehive2')
     result = rv.get_json()
@@ -83,13 +94,6 @@ def test_assign_node_to_beehive(client):
 
 
     # upload beehive certs
-    #data = {
-    #    "tls-key": (io.BytesIO(b'a'), "dummmy"),
-    #    'tls-cert': (io.BytesIO(b'b'), "dummmy"),
-    #    'ssh-key': (io.BytesIO(b'c'), "dummmy"),
-    #    'ssh-pub': (io.BytesIO(b'd'), "dummmy"),
-    #    'ssh-cert': (io.BytesIO(b'e'), "dummmy")
-    #}
     data = {
         "tls-key": (open("/test-data/beehive_ca/tls/cakey.pem", "rb"), "dummmy"),
         'tls-cert': (open("/test-data/beehive_ca/tls/cacert.pem", "rb"), "dummmy"),
@@ -119,10 +123,6 @@ def test_assign_node_to_beehive(client):
     rv = client.post('/node/0000000000000001?force=true', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
     result = rv.get_json()
     assert "success" in result
-
-
-
-
 
 
 def get_test_data():
@@ -268,7 +268,6 @@ def test_credentials(client):
 
 
 def test_beehives(client):
-
     rv = client.delete('/beehives/test-beehive')
     result = rv.get_json()
     assert "deleted" in result  # 0 or 1, either is fine here
@@ -305,3 +304,8 @@ def test_error(client):
 
     result = rv.get_json()
     assert b'error' in rv.data
+
+
+def randhex(n):
+    from random import randint
+    return bytes([randint(0, 255) for _ in range(n)]).hex().upper()

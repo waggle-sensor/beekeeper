@@ -1279,7 +1279,7 @@ class Registration(MethodView):
 
     # example: curl localhost:5000/register?id=xxx
     # this creates id: node-xxx
-    def get(self):
+    def post(self):
         """API to create keys, certificate and user for end-point.
 
         Arguments:
