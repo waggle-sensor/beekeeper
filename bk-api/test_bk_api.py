@@ -92,7 +92,6 @@ def test_assign_node_to_beehive(client):
     assert "data" in result
     assert len(result["data"]) > 0
 
-
     # upload beehive certs
     data = {
         "tls-key": (open("/test-data/beehive_ca/tls/cakey.pem", "rb"), "dummmy"),
@@ -104,15 +103,6 @@ def test_assign_node_to_beehive(client):
     rv = client.post('/beehives/test-beehive2', content_type='multipart/form-data', data=data)
     result = rv.get_json()
     assert "modified" in result
-
-
-
-    #register node (not needed, node does that)
-    #rv = client.get('/register?id=testnode2')
-    #assert rv.status_code == 200
-    #result = rv.get_json()
-    #assert 'certificate'  in result
-
 
     #assign node
     rv = client.post('/node/0000000000000001', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
