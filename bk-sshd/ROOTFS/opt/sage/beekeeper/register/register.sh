@@ -30,8 +30,6 @@ command="${user_args[0]}"
 case "${command}" in
   register)
     node="${user_args[1]}"
-    echo "registering ${node} with ${beehive}"
-
     params="node_id=${node}"
 
     if [ ! -z "${beehive}" ]; then
@@ -41,7 +39,7 @@ case "${command}" in
     curl -s -X POST "${bk_register_url}/register?${params}"
     ;;
   *)
-    echo "invalid command: ${command}"
+    echo "invalid command"
     exit 1
     ;;
 esac
