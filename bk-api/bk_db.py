@@ -38,6 +38,13 @@ class BeekeeperDB():
         if not config.mysql_password:
             raise Exception("MYSQL_PASSWORD is not defined")
 
+        # NOTE(sean) I don't think we want the retry logic to live inside this function but instead managed by the caller.
+        #
+        # For example, if there is a database problem and a client connects to the API, this will keep retrying for multiple
+        # minutes. Even if the client closes the request, the server will continue this retry loop until it times out.
+        #
+        # I think it would be better to immediately fail with some kind of "Service Unavailable" status code instead and leave
+        # it to clients to retry.
         count = 0
         while True:
             try:
