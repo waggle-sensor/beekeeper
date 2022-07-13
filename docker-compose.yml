@@ -1,7 +1,5 @@
 version: '3.7'
 services:
-
-
   bk-sshd:
     image: waggle/beekeeper-sshd:latest
     build: bk-sshd
@@ -23,7 +21,6 @@ services:
       - ${PWD}/beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
       - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
       - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
-
   bk-api:
     image: waggle/beekeeper-api:latest
     build: bk-api
@@ -42,17 +39,13 @@ services:
       - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
       - ${PWD}/beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
     ports:
-      - "5000:5000"  # for testing purposes
-
-
-
+      - "127.0.0.1:5000:5000"  # for testing purposes
   db:
-    image: mysql:8.0.20
+    image: mysql:8.0.29
     env_file: mysql.env
     volumes:
       - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
       - beekeeper-db:/var/lib/mysql
-
   node1:
     image: waggle/wes-minimal
     volumes:
@@ -62,12 +55,9 @@ services:
       - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
       # so beekeeper can ssh into it:
       - ${PWD}/beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
-
-
 volumes:
   #bk-homedirs:
   beekeeper-db:
   #bk-secrets:
   #  external:
   #    name: beekeeper-config_bk-secrets
-
