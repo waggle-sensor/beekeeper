@@ -6,6 +6,8 @@
 #           http://www.wa8.gl
 # ANL:waggle-license
 
+# NOTE(sean) This script forwards JSON output directly to a consumer, so do not write anything else to stdout!
+
 set -eu
 
 bk_register_url=http://bk-api:5000
