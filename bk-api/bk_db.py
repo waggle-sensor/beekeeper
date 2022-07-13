@@ -1,4 +1,3 @@
-
 import MySQLdb
 import config
 import dateutil.parser
@@ -6,16 +5,7 @@ import sys
 import time
 import logging
 
-
-formatter = logging.Formatter(
-    "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
-)
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setFormatter(formatter)
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
 
 table_fields = {}
 table_fields_index ={}
@@ -409,7 +399,7 @@ class BeekeeperDB():
                                WHERE t2.id = t1.id)
         '''
 
-        print(f'statement: {stmt}', flush=True)
+        logger.debug("statement: %r", stmt)
         self.cur.execute(stmt)
 
         # create list of dicts
@@ -518,7 +508,7 @@ class BeekeeperDB():
 
 
 
-        print(f'debug_stmt: {debug_stmt}', flush=True)
+        logger.debug("debug_stmt: %r", stmt)
         self.cur.execute(stmt, (*values, ))
         if commit:
             self.db.commit()

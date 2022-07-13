@@ -42,28 +42,11 @@ import os.path
 import requests
 import re
 
-from sshkeygen import SSHKeyGen, run_command, run_command_communicate
-import traceback
-from werkzeug.utils import secure_filename
+from sshkeygen import SSHKeyGen, run_command_communicate
 
 import linecache
 
-
-formatter = logging.Formatter(
-    "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
-)
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setFormatter(formatter)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
-
-
-
-
-for k, v in sorted(os.environ.items()):
-    print(k+':', v)
-print('\n')
 
 BASE_KEY_DIR = "/usr/lib/waggle"
 #CA_FILE = os.path.join(BASE_KEY_DIR, "certca/beekeeper_ca_key")
@@ -96,10 +79,6 @@ def ShowException():
     return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
 
 
-
-
-
-
 def b64string_encode(input):
     return base64.b64encode(str.encode(input)).decode('utf-8')
 
@@ -117,8 +96,6 @@ def register_node(node_id, lock_tables=True, lock_requested_by=""):
         raise Exception(f"insert_log returned: {str(e)}")
 
 
-    return
-
 def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by=""):
 
     payload = {"node_id": node_id, "source": "beekeeper-wes-deploy", "operation":"insert", "field_name": "wes_deploy_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
@@ -130,8 +107,6 @@ def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by="
     except Exception as e:
         raise Exception(f"insert_log returned: {str(e)}")
 
-
-    return
 
 def set_node_beehive(node_id, beehive_id):
 
@@ -176,21 +151,12 @@ def set_node_beehive(node_id, beehive_id):
         raise Exception(f"insert_log returned: {str(e)}")
 
 
-    return
-
-
-
-
-
 # register test nodes (use only in development environment)
 def initialize_test_nodes():  # pragma: no cover   this code is not used in production
-
-
     test_nodes_file = os.path.join(BASE_KEY_DIR, "test-nodes.txt")
     if not os.path.isfile(test_nodes_file):
         logger.debug(f"File {test_nodes_file} not found. (only needed in testing)")
         return
-
 
     logger.debug(f"File {test_nodes_file} found. Load test nodes into DB")
 
@@ -312,7 +278,7 @@ def _register(node_id):
     key_generator = SSHKeyGen()
 
     if creds:
-        print("got credentials from DB")
+        logger.info("got credentials from DB")
         # Files found in DB,nor write to disk so they can be used to create certififcate
         try:
             key_generator.write_keys_to_files(node_id, creds["private_key"], creds["public_key"])
@@ -1401,9 +1367,8 @@ def handle_invalid_usage(error):
 
 
 def setup_app(app):
-
-
-
+    logging.basicConfig(level=logging.INFO,
+        format="%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s")
 
    # All your initialization code
     bee_db = BeekeeperDB()

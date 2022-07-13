@@ -28,24 +28,35 @@ def test_root(client):
     rv = client.get('/')
     assert b'SAGE Beekeeper API' in rv.data
 
+
 def test_registration(client):
-
     # Do it twice to make sure the code for the cached version is included
-    rv = client.get('/register?id=FOOBAR')
-    assert rv.status_code == 200
-    result = rv.get_json()
+    r = client.get('/register?node_id=FOOBAR')
+    assert r.status_code == 200
+    result = r.get_json()
+    assert 'certificate' in result
+
+    r = client.get('/register?node_id=FOOBAR')
+    assert r.status_code == 200
+    result = r.get_json()
     assert 'certificate'  in result
 
-    rv = client.get('/register?id=FOOBAR')
-    assert rv.status_code == 200
-    result = rv.get_json()
-    assert 'certificate'  in result
-
-
-    rv = client.get('/credentials/FOOBAR')
-    result = rv.get_json()
+    r = client.get('/credentials/FOOBAR')
+    result = r.get_json()
     assert "ssh_key_private" in result
     assert "ssh_key_public" in result
+
+
+def test_registration_with_specific_beehive(client):
+    r = client.post('/beehives', data=json.dumps({"id": "test-beehive", "key-type":"rsa-sha2-256"}))
+
+    r = client.get('/register?node_id=NODE123&beehive_id=test-beehive')
+    assert r.status_code == 200
+
+
+def test_registration_with_nonexistant_beehive(client):
+    r = client.get('/register?node_id=NODE123&beehive_id=nonexistant-beehive')
+    assert r.status_code == 404
 
 
 def test_assign_node_to_beehive(client):
@@ -159,7 +170,6 @@ def test_log_insert(client):
     rv = client.get(f'/state/123')
 
     result = rv.get_json()
-    print(result)
     assert 'error' not in result
     assert 'data' in result
 
@@ -294,5 +304,4 @@ def test_error(client):
     rv = client.get(f'/state/foobar')
 
     result = rv.get_json()
-    print(result)
     assert b'error' in rv.data
