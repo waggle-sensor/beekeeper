@@ -57,6 +57,11 @@ class BeekeeperDB():
         self.db.close()
 
     def nodes_log_add(self, logData, lock_tables=True, lock_requested_by="", replay=True):
+        # TODO(sean) It seems like lock_tables and lock_requested_by are unused, but calls to this
+        # use it throughout the code base. Just based on the name, I assume lock_tables means that
+        # a series of operations is done transactionally? If that true, then I don't understand why
+        # we would ever disable that?
+
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
         values_s = '%s, %s, %s, %s, %s, %s, %s'
