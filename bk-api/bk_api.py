@@ -144,6 +144,12 @@ def set_node_beehive(node_id, beehive_id):
         node_state = bee_db.get_node_state(node_id)
     #except bk_db.ObjectNotFound:
     #    node_state = None
+        # TODO(sean) we may want to make BeekeeperDB a contextmanager so we can just start using:
+        #
+        # with BeekeeperDB() as bee_db:
+        #     ... code which uses database ...
+        #
+        # This could help ensure that we always either commit or rollback changes to the database.
         bee_db.close()
     except Exception as e:
         logger.debug(f"Getting node failed: {str(e)}")
