@@ -11,10 +11,6 @@ def app():
     # TODO(sean) It would be nice to setup a fresh database here, so different unit tests can't affect each other.
     # For example, we could generate some BeekeeperTestRandomID database and init the tables.
     app = create_app()
-    app.config.update({
-        "TESTING": True,
-    })
-
     yield app
 
 
