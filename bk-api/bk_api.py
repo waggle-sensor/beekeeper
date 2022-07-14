@@ -11,7 +11,7 @@ import os
 import sys
 
 
-from flask import Flask
+from flask import Flask, current_app
 from flask_cors import CORS
 from flask.views import MethodView
 from flask import jsonify
@@ -642,7 +642,6 @@ def kube_secret(name, data):
 
 # force: create new certs even if old ones exist
 def deploy_wes(node_id, this_debug, force=False):
-
     logger.debug("(deploy_wes) determine correct beehive")
 
     assign_beehive = ""
@@ -678,10 +677,9 @@ def deploy_wes(node_id, this_debug, force=False):
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
 
-    logger.debug(f"(deploy_wes) using beehive {beehive_id}")
+    logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
-
-    # first check if kubectl work on the node
+    logger.debug("(deploy_wes) checking if node %s is running k8s", node_id)
     try:
         result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
     except Exception as e:
@@ -802,8 +800,6 @@ def deploy_wes(node_id, this_debug, force=False):
     else:
         logger.info("/config/node-private-git-repo-key/node-private-git-repo-key not found, skipping")
 
-
-
     final_command = "./update-stack.sh"
     if FAKE_DEPLOYMENT:
         final_command = "echo \"This fake deployment was successful\""
@@ -859,9 +855,7 @@ cd /opt/waggle-edge-stack/kubernetes
 
 
 
-def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
-
-
+def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
@@ -994,18 +988,18 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
 
 # /node/<node_id>
 class Node(MethodView):
+
+    # TODO(sean) We should review the public endpoints. I personally find it odd that we can post to /node
+    # but must get node info from /state.
     def get(self, node_id):
-        return { "error" : "nothing here, use the /state resource instead " }
+        return {"error" : "nothing here, use the /state resource instead "}
 
     # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
     #          curl localhost:5000/node/xxx -d '{"deploy_wes": true}'
     def post(self, node_id):
         try:
-#request.get
             postData = request.get_json(force=True, silent=False)
-
         except Exception as e:
-
             raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         this_debug = request.args.get('debug', "false") in ["true", "1"]
@@ -1019,22 +1013,15 @@ class Node(MethodView):
                 logger.error(e)
                 raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-
-
         if "deploy_wes" in postData:
-
             try:
                 result = deploy_wes(node_id, this_debug, force=force)
             except Exception as e:
                 logger.error(e)
                 raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
             return jsonify(result)
 
-
-
-
-        return jsonify({"success":True})
+        return jsonify({"success": True})
 
 
 class BeehivesList(MethodView):

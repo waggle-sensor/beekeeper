@@ -89,20 +89,21 @@ def test_registration_with_nonexistant_beehive(client):
 
 
 def test_assign_node_to_beehive(client):
-    # create new beehive
-    rv = client.delete('/beehives/test-beehive2')
-    result = rv.get_json()
-    assert "deleted" in result  # 0 or 1, either is fine here
+    # TODO(sean) Would be nice if this were generalized to a random node ID, but this is hard as it requires
+    # deploying WES. If we plan on exercising that with an integration test, then we might simplify what this
+    # unit test is actually checking.
+    node_id = f"0000000000000001"
+    beehive_id = f"test-beehive-{randhex(8)}"
 
-    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
-    result = rv.get_json()
+    # create new node
+    r = client.post(f'/register?node_id={node_id}')
+    assert r.status_code == 200
+
+    # create new beehive
+    r = client.post('/beehives', data = json.dumps({"id": beehive_id, "key-type":"rsa-sha2-256"}))
+    result = r.get_json()
     assert "modified" in result
     assert result["modified"] > 0
-
-    # post second time just to increase test coverage
-    rv = client.post('/beehives', data = json.dumps({"id": "test-beehive2", "key-type":"rsa-sha2-256"}))
-    result = rv.get_json()
-    assert "modified" in result
 
     rv = client.get('/beehives')
     result = rv.get_json()
@@ -117,17 +118,17 @@ def test_assign_node_to_beehive(client):
         'ssh-pub': (open("/test-data/beehive_ca/ssh/ca.pub", "rb"), "dummmy"),
         'ssh-cert': (open("/test-data/beehive_ca/ssh/ca-cert.pub", "rb"), "dummmy")
     }
-    rv = client.post('/beehives/test-beehive2', content_type='multipart/form-data', data=data)
+    rv = client.post(f'/beehives/{beehive_id}', content_type='multipart/form-data', data=data)
     result = rv.get_json()
     assert "modified" in result
 
-    #assign node
-    rv = client.post('/node/0000000000000001', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
+    # assign node
+    rv = client.post(f'/node/{node_id}', data = json.dumps({"assign_beehive": beehive_id, "deploy_wes": True}))
     result = rv.get_json()
     assert "success" in result
 
-    #assign node with force
-    rv = client.post('/node/0000000000000001?force=true', data = json.dumps({"assign_beehive": "test-beehive2", "deploy_wes":True}))
+    # assign node with force
+    rv = client.post(f'/node/{node_id}?force=true', data = json.dumps({"assign_beehive": beehive_id, "deploy_wes": True}))
     result = rv.get_json()
     assert "success" in result
 
@@ -150,9 +151,7 @@ def get_test_data():
     return {'test_time': test_time, 'data': data}
 
 def test_log_insert_fail(client):
-
     rv = client.post('/log', data = "foobar")
-
     result = rv.get_json()
     assert 'error'  in result
 
@@ -249,14 +248,10 @@ def test_list_recent_state(client):
     assert d[0]['mode'] == 'failed'
 
 def test_credentials(client):
-
-
     rv = client.post('/credentials/dummy', data = "test")
-
     assert rv.status_code != 200
 
     rv = client.post('/credentials/cred-test', data = json.dumps({"ssh_key_private":"x", "ssh_key_public":"y"}))
-
     assert rv.status_code == 200
 
 
@@ -310,7 +305,6 @@ def test_beehives(client):
 
 def test_error(client):
     rv = client.get(f'/state/foobar')
-
     result = rv.get_json()
     assert b'error' in rv.data
 
