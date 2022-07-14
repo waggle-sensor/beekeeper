@@ -1,13 +1,9 @@
-Flask
+flask==2.1.*
 flask_cors
 mysqlclient
 pytest
 coverage
-#middleware
 requests
-#python-jenkins
-#xmltodict
-#prometheus_client
 pyyaml
 gunicorn
 Werkzeug

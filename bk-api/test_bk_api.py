@@ -1,20 +1,31 @@
-import bk_api
+from bk_api import create_app
+from bk_db import BeekeeperDB
 import datetime
 import pytest
 import json
 import io
 
 
-# from https://flask.palletsprojects.com/en/1.1.x/testing/
 @pytest.fixture
-def client():
+def app():
     # TODO(sean) It would be nice to setup a fresh database here, so different unit tests can't affect each other.
     # For example, we could generate some BeekeeperTestRandomID database and init the tables.
-    app = bk_api.app
-    with app.test_client() as client:
-        #with app.app_context():
-        #    init_db()
-        yield client
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+    })
+
+    yield app
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture
+def runner(app):
+    return app.test_cli_runner()
 
 
 def test_root(client):
@@ -154,7 +165,8 @@ def test_log_insert_fail(client):
 
 # TODO test full replay without timestamp
 def test_log_insert(client):
-    bee_db = bk_api.BeekeeperDB()
+    # TODO(sean) Can we use a public endpoint which exercises this rather than test the internals?
+    bee_db = BeekeeperDB()
     bee_db.truncate_table("nodes_log")
     bee_db.truncate_table("nodes_history")
 
@@ -194,7 +206,8 @@ def test_log_insert(client):
 
 
 def test_list_recent_state(client):
-    bee_db = bk_api.BeekeeperDB()
+    # TODO(sean) Can we use a public endpoint which exercises this rather than test the internals?
+    bee_db = BeekeeperDB()
     bee_db.truncate_table("nodes_log")
     bee_db.truncate_table("nodes_history")
 

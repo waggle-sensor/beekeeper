@@ -1253,7 +1253,6 @@ class Credentials(MethodView):
         return jsonify({"deleted": result_count})
 
 
-#@app.route("/register")
 class Registration(MethodView):
 
     # example: curl localhost:5000/register?id=xxx
@@ -1319,43 +1318,42 @@ class Registration(MethodView):
         return registration_result
 
 
-app = Flask(__name__)
-CORS(app)
-app.logger.setLevel(logging.DEBUG)
-app.config["PROPAGATE_EXCEPTIONS"] = True
-#app.wsgi_app = ecr_middleware(app.wsgi_app)
+def create_app(test_config=None):
+    app = Flask(__name__, instance_relative_config=True)
 
-app.add_url_rule('/', view_func=Root.as_view('root'))
-app.add_url_rule('/log', view_func=Log.as_view('log'))
-
-app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
-
-app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
-app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
-app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
-
-# administrative functionality: e.g. assign beehive
-app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
-app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
-app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
-
-# this is where nodes register
-app.add_url_rule('/register', view_func=Registration.as_view('registration'))
-
-@app.errorhandler(ErrorResponse)
-def handle_invalid_usage(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
-
-
-def setup_app(app):
     logging.basicConfig(level=logging.INFO,
         format="%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s")
 
+    CORS(app)
+
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    #app.wsgi_app = ecr_middleware(app.wsgi_app)
+
+    app.add_url_rule('/', view_func=Root.as_view('root'))
+    app.add_url_rule('/log', view_func=Log.as_view('log'))
+
+    app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
+
+    app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
+    app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
+    app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
+
+    # administrative functionality: e.g. assign beehive
+    app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
+    app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
+    app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
+
+    # this is where nodes register
+    app.add_url_rule('/register', view_func=Registration.as_view('registration'))
+
+    @app.errorhandler(ErrorResponse)
+    def handle_invalid_usage(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        return response
+
    # All your initialization code
     bee_db = BeekeeperDB()
-
 
     for table_name in ['nodes_log', 'nodes_history', 'beehives']:
 
@@ -1378,16 +1376,11 @@ def setup_app(app):
     logger.debug(table_fields)
     logger.debug(table_fields_index)
 
-
     initialize_test_nodes()
 
+    return app
 
 
-
-setup_app(app)
-
-
-if __name__ == '__main__':
-
-    app.run(debug=False, host='0.0.0.0')
-    #app.run()
+if __name__ == "__main__":
+    app = create_app()
+    app.run()
