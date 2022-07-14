@@ -2,7 +2,7 @@ all:
 
 .PHONY: test
 test:
-	docker-compose exec bk-api pytest test_bk_api.py
+	docker-compose exec bk-api pytest -v
 
 .PHONY: svc-up
 svc-up:
