@@ -88,8 +88,7 @@ def test_registration_with_specific_beehive(client):
 
 
 def test_registration_with_nonexistant_beehive(client):
-    node_id = f"NODE{randhex(4)}"
-    r = client.post('/register?node_id=NODE123&beehive_id=nonexistant-beehive')
+    r = client.post(f'/register?node_id=NODE123&beehive_id=nonexistant-beehive')
     assert r.status_code == 404
 
 
