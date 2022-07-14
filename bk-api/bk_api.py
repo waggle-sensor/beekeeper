@@ -1258,10 +1258,10 @@ class Registration(MethodView):
         node_id = request.args.get("node_id", type=str)
 
         if not node_id:
-            return "error: node id must be provided.\n", 400
+            return "error: node id must be provided.\n", HTTPStatus.BAD_REQUEST
 
         if not valid_node_id(node_id):
-            return "error: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", 400
+            return "error: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", HTTPStatus.BAD_REQUEST
 
         beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
@@ -1276,21 +1276,21 @@ class Registration(MethodView):
 
             if not beehive_obj:
                 logger.error("registration error: beehive does not exist: %r", request.args)
-                return "error: beehive not found", 404
+                return "error: beehive not found", HTTPStatus.NOT_FOUND
 
         try:
             # create keypair and certificates for node (idempotent function)
             registration_result = _register(node_id)
         except Exception as e:
             logger.exception("registration error: _register: %r", request.args)
-            return f"error: unable to register id [{node_id} , {e}]\n", 500
+            return f"error: unable to register id [{node_id} , {e}]\n", HTTPStatus.INTERNAL_SERVER_ERROR
 
         # update beekeeper db (create registartion event)
         try:
             register_node(node_id, lock_requested_by="register-resource")
         except Exception as e:
             logger.exception("registration error: register_node: %r", request.args)
-            return f"Error: Creating registration event failed: {str(e)}", 500
+            return f"Error: Creating registration event failed: {str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR
 
         if beehive_id:
             time.sleep(2) # see if that helps with the locks
@@ -1299,7 +1299,7 @@ class Registration(MethodView):
                 set_node_beehive(node_id, beehive_id)
             except Exception as e:
                 logger.exception("registration error: set_node_beehive: %r", request.args)
-                return f"Error: Adding node to beehive {beehive_id} failed: {e}", 500
+                return f"Error: Adding node to beehive {beehive_id} failed: {e}", HTTPStatus.INTERNAL_SERVER_ERROR
 
         logger.info("registration ok: %r", request.args)
         return registration_result

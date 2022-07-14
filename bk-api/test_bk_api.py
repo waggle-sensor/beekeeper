@@ -4,7 +4,7 @@ import datetime
 import pytest
 import json
 import io
-
+from http import HTTPStatus
 
 @pytest.fixture
 def app():
@@ -32,13 +32,13 @@ def test_root(client):
 def test_registration(client):
     # Do it twice to make sure the code for the cached version is included
     r = client.post('/register?node_id=FOOBAR')
-    assert r.status_code == 200
+    assert r.status_code == HTTPStatus.OK
     result = r.get_json()
     assert 'certificate' in result
 
     # TODO(sean) I'm not sure what behavior this is testing. Is it a cached response? Same status code?
     r = client.post('/register?node_id=FOOBAR')
-    assert r.status_code == 200
+    assert r.status_code == HTTPStatus.OK
     result = r.get_json()
     assert 'certificate' in result
 
@@ -50,13 +50,13 @@ def test_registration(client):
 
 def test_registration_missing_node_id(client):
     r = client.post('/register')
-    assert r.status_code == 400
+    assert r.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_registration_invalid_node_id(client):
     for node_id in ["SHORT", "NOLOwERCASE", "AVOIDUSING_", "AREALLYREALLYREALLYLONGNODEIDTHATISNOTALLOWED"]:
         r = client.post(f'/register?node_id={node_id}')
-        assert r.status_code == 400
+        assert r.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_registration_with_specific_beehive(client):
@@ -67,14 +67,14 @@ def test_registration_with_specific_beehive(client):
 
     # GET should not be allowed
     r = client.get(f'/register?node_id={node_id}&beehive_id={beehive_id}')
-    assert r.status_code == 405
+    assert r.status_code == HTTPStatus.METHOD_NOT_ALLOWED
 
     # POST should be allowed
     r = client.post(f'/register?node_id={node_id}&beehive_id={beehive_id}')
-    assert r.status_code == 200
+    assert r.status_code == HTTPStatus.OK
 
     r = client.get(f'/state/{node_id}')
-    assert r.status_code == 200
+    assert r.status_code == HTTPStatus.OK
     data = r.get_json()["data"]
     assert data["beehive"] == beehive_id
 
@@ -85,7 +85,7 @@ def test_registration_with_specific_beehive(client):
 
 def test_registration_with_nonexistant_beehive(client):
     r = client.post(f'/register?node_id=NODE123&beehive_id=nonexistant-beehive')
-    assert r.status_code == 404
+    assert r.status_code == HTTPStatus.NOT_FOUND
 
 
 def test_assign_node_to_beehive(client):
@@ -97,7 +97,7 @@ def test_assign_node_to_beehive(client):
 
     # create new node
     r = client.post(f'/register?node_id={node_id}')
-    assert r.status_code == 200
+    assert r.status_code == HTTPStatus.OK
 
     # create new beehive
     r = client.post('/beehives', data = json.dumps({"id": beehive_id, "key-type":"rsa-sha2-256"}))
@@ -249,10 +249,10 @@ def test_list_recent_state(client):
 
 def test_credentials(client):
     rv = client.post('/credentials/dummy', data = "test")
-    assert rv.status_code != 200
+    assert rv.status_code != HTTPStatus.OK
 
     rv = client.post('/credentials/cred-test', data = json.dumps({"ssh_key_private":"x", "ssh_key_public":"y"}))
-    assert rv.status_code == 200
+    assert rv.status_code == HTTPStatus.OK
 
 
     rv = client.get('/credentials/cred-test')
@@ -265,7 +265,7 @@ def test_credentials(client):
 
     # clean-up
     rv = client.delete('/credentials/cred-test')
-    assert rv.status_code == 200
+    assert rv.status_code == HTTPStatus.OK
     result = rv.get_json()
     assert "deleted" in result
     assert result["deleted"] == 2
