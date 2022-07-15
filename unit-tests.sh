@@ -22,4 +22,4 @@ done
 
 ### TEST BEEKEEPER API
 set -x
-docker-compose exec --no-TTY bk-api /bin/bash -c 'coverage run -m pytest -v &&  coverage report -m --fail-under 85 --include=./*'
+docker-compose exec bk-api /bin/bash -c 'coverage run -m pytest -v &&  coverage report -m --fail-under 85 --include=./*'

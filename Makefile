@@ -2,7 +2,7 @@ all:
 
 .PHONY: test
 test:
-	docker-compose exec bk-api pytest -v
+	./unit-tests.sh
 
 .PHONY: svc-up
 svc-up:
