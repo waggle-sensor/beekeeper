@@ -15,7 +15,7 @@ curl -s -F "tls-key=@tls/cakey.pem" -F "tls-cert=@tls/cacert.pem"  -F "ssh-key=@
 )
 
 # NOTE(sean) --no-TTY allows docker-compose exec to run correctly in CI.
-until docker-compose exec --no-TTY bk-sshd test -e /home_dirs/node-0000000000000001/rtun.sock; do
+until docker exec -i $(docker-compose ps -q bk-sshd) test -e /home_dirs/node-0000000000000001/rtun.sock; do
   echo waiting for /home_dirs/node-0000000000000001/rtun.sock
   sleep 1
 done
