@@ -30,22 +30,26 @@ def test_root(client):
 
 
 def test_registration(client):
-    # Do it twice to make sure the code for the cached version is included
-    r = client.post('/register?node_id=FOOBAR')
-    assert r.status_code == HTTPStatus.OK
-    result = r.get_json()
-    assert 'certificate' in result
+    # fuzz test registration
+    for _ in range(10):
+        node_id = rand_node_id()
 
-    # TODO(sean) I'm not sure what behavior this is testing. Is it a cached response? Same status code?
-    r = client.post('/register?node_id=FOOBAR')
-    assert r.status_code == HTTPStatus.OK
-    result = r.get_json()
-    assert 'certificate' in result
+        # Do it twice to make sure the code for the cached version is included
+        r = client.post(f'/register?node_id={node_id}')
+        assert r.status_code == HTTPStatus.OK
+        result = r.get_json()
+        assert 'certificate' in result
 
-    r = client.get('/credentials/FOOBAR')
-    result = r.get_json()
-    assert "ssh_key_private" in result
-    assert "ssh_key_public" in result
+        # TODO(sean) I'm not sure what behavior this is testing. Is it a cached response? Same status code?
+        r = client.post(f'/register?node_id={node_id}')
+        assert r.status_code == HTTPStatus.OK
+        result = r.get_json()
+        assert 'certificate' in result
+
+        r = client.get(f'/credentials/{node_id}')
+        result = r.get_json()
+        assert "ssh_key_private" in result
+        assert "ssh_key_public" in result
 
 
 def test_registration_missing_node_id(client):
@@ -59,17 +63,19 @@ def test_registration_invalid_node_id(client):
         assert r.status_code == HTTPStatus.BAD_REQUEST
 
 
-def test_registration_with_specific_beehive(client):
-    node_id = f"TEST{randhex(4)}"
-    beehive_id = f"test-beehive-{randhex(8)}"
-
-    r = client.post('/beehives', data=json.dumps({"id": beehive_id, "key-type":"rsa-sha2-256"}))
-
-    # GET should not be allowed
+def test_registration_get_not_allowed(client):
+    node_id = rand_node_id()
+    beehive_id = rand_beehive_id()
     r = client.get(f'/register?node_id={node_id}&beehive_id={beehive_id}')
     assert r.status_code == HTTPStatus.METHOD_NOT_ALLOWED
 
-    # POST should be allowed
+
+def test_registration_with_specific_beehive(client):
+    node_id = rand_node_id()
+    beehive_id = rand_beehive_id()
+
+    r = client.post('/beehives', data=json.dumps({"id": beehive_id, "key-type":"rsa-sha2-256"}))
+
     r = client.post(f'/register?node_id={node_id}&beehive_id={beehive_id}')
     assert r.status_code == HTTPStatus.OK
 
@@ -93,7 +99,7 @@ def test_assign_node_to_beehive(client):
     # deploying WES. If we plan on exercising that with an integration test, then we might simplify what this
     # unit test is actually checking.
     node_id = f"0000000000000001"
-    beehive_id = f"test-beehive-{randhex(8)}"
+    beehive_id = rand_beehive_id()
 
     # create new node
     r = client.post(f'/register?node_id={node_id}')
@@ -309,6 +315,16 @@ def test_error(client):
     assert b'error' in rv.data
 
 
-def randhex(n):
+def rand_node_id():
+    return rand_string(6, 16, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+
+def rand_beehive_id():
+    return rand_string(3, 64, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+
+
+def rand_string(min_length, max_length, characters):
     from random import randint
-    return bytes([randint(0, 255) for _ in range(n)]).hex().upper()
+    from random import choice
+    length = randint(min_length, max_length)
+    return "".join(choice(characters) for _ in range(length))

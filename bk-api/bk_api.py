@@ -255,7 +255,7 @@ def post_node_credentials(node_id, private_key, public_key):
 
 
 def valid_node_id(s):
-    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,32}", s) is not None
+    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,16}", s) is not None
 
 
 def _register(node_id):
@@ -1258,15 +1258,14 @@ class Registration(MethodView):
         node_id = request.args.get("node_id", type=str)
 
         if not node_id:
-            return "error: node id must be provided.\n", HTTPStatus.BAD_REQUEST
+            return "error: node_id must be provided.\n", HTTPStatus.BAD_REQUEST
 
         if not valid_node_id(node_id):
-            return "error: invalid node_id. (node ids must be between 6 and 32 [a-z0-9] characters.)\n", HTTPStatus.BAD_REQUEST
+            return "error: invalid node id.\n", HTTPStatus.BAD_REQUEST
 
         beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
         if beehive_id:
-            # first check the default beehive exists
             try:
                 bee_db = BeekeeperDB()
                 beehive_obj = bee_db.get_beehive(beehive_id)
