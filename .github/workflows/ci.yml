@@ -12,19 +12,11 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Create keys
-        run: ./create-keys.sh init --nopassword
-      - name: Create reg cert
-        run: ./create-keys.sh cert untilforever forever
-      - name: Build docker images
-        run: docker-compose build
-      - name: Start docker-compose
-        run: docker-compose up -d
+      - name: Build and run services
+        run: make svc-up
       - name: Wait for docker-compose services
         run: while [ $(curl -s localhost:5000)_ != "SAGE Beekeeper API_"  ] ; do echo waiting... ; sleep 2 ; done
-
-      - name: Unit tests
-        run: ./unit-tests.sh
-
-      - name: Clean-up
-        run: docker-compose down
+      - name: Run tests
+        run: make test
+      - name: Clean up services
+        run: make svc-down
