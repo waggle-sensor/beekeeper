@@ -679,7 +679,7 @@ def deploy_wes(node_id, this_debug, force=False):
 
     logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
-    logger.debug("(deploy_wes) checking if node %s is running k8s", node_id)
+    logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
     try:
         result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
     except Exception as e:
