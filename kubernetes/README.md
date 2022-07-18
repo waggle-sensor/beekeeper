@@ -170,3 +170,62 @@ In a private config repository:
 
 ssh -i ./admin.pem -o "IdentitiesOnly=yes" -p 49190 root@localhost
 ```
+
+# Development environment
+The development environment provides users the following benefits:
+- Test a recently pushed image of beekeeper on k8s
+- Test integration with other development services
+- Virtual nodes to test new code changes against
+
+[Nautilus](https://ucsd-prp.gitlab.io/) is used for deploying the development version of Beekeeper.
+
+Overlays:
+- dev: development overlay that modifies the `base` with the following changes:
+  - Ingress controller is modified to the [Nautilus' controller](https://ucsd-prp.gitlab.io/userdocs/tutorial/basic2/)
+  - [test-nodes.txt](../test-keys/test-nodes.txt) file to easily pass in values to the API/DB and not be dependent on having virtual or real nodes. Mileage may vary for testing new changes.
+  - Exclude volume mounts meant for production
+  - Change the compute resources (CPU and memory) on each deployment
+  - Generates all the secrets and confimaps for beekeeper using the kustomize generator.
+
+This assumes that the mysql helm chart is deployed:
+```
+helm install beekeeper-mysql --set image.tag=8.0.23-debian-10-r30 --set primary.persistence.size=1Gi bitnami/mysql --set startupProbe.initialDelaySeconds=480
+```
+
+Note:
+- CEPH on Nautilus can be slow for some nodes so the startupProbe is delayed to take that into account.
+- The name `beekeeper-mysql` used in the helm install command is used in the configmap `beekeeper-api-config` as `MYSQL_HOST` environment variable, so it needs to match.
+- To initilize the DB reference the top of this [README](#mysql-load-schema-create-userpassword-in-mysql--create-secret) the MYSQL password will be stored in `dev/mysql-secrets.env` and used in the next sections.
+
+Generate dev Beekeeper keys (if not generated):
+```
+./create-keys.sh init --nopassword
+./create-keys.sh cert untilforever forever
+```
+
+Get Nautilus kube config file from [here](https://portal.nrp-nautilus.io/)
+
+Make sure to change to the `kubernetes` directory: `cd kubernetes`
+
+Deploy:
+```
+kubectl kustomize dev --load-restrictor LoadRestrictionsNone $target | kubectl apply -f -
+```
+
+Note:
+- The flag `--load-restrictor LoadRestrictionsNone $target` is to allow kustomize to search for files outside of the dev overlay directory. This is primarily used for the secrets and configmaps.
+
+Delete:
+```
+kubectl kustomize dev --load-restrictor LoadRestrictionsNone $target | kubectl delete -f -
+```
+
+Check the manifest files:
+```
+kubectl kustomize dev --load-restrictor LoadRestrictionsNone $target >> bk-dev.yaml
+```
+
+Check the state of beekeeper:
+```
+curl https://bk.nrp-nautilus.io/state | jq
+```

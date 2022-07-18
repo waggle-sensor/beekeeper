@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beekeeper-api
+spec:
+  template:
+    spec:
+      containers:
+      - name: beekeeper-api
+        volumeMounts:
+        - name: beekeeper-test-nodes
+          mountPath: /usr/lib/waggle/test-nodes.txt
+          subPath: test-nodes.txt
+          readOnly: true
+      volumes:
+      - name: beekeeper-test-nodes
+        configMap:
+          name: beekeeper-test-nodes

@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../base
+patchesStrategicMerge:
+- ingress.yaml
+- compute-resources.yaml
+- exclude-volume-mounts.yaml
+- add-test-nodes-file.yaml
+configMapGenerator:
+- name: beekeeper-api-config
+  literals:
+  - MYSQL_HOST=beekeeper-mysql
+  - MYSQL_DATABASE=Beekeeper
+  - MYSQL_USER=beekeeper
+- name: beekeeper-test-nodes
+  files: 
+  - ../../test-keys/test-nodes.txt
+secretGenerator:
+- name: beekeeper-api-secret
+  envs:
+  - mysql-secrets.env
+- name: beekeeper-sshd-ca-secret
+  files:
+  - ../../beekeeper-keys/certca/beekeeper_ca_key
+  - ../../beekeeper-keys/certca/beekeeper_ca_key.pub
+- name: beekeeper-sshd-server-secret
+  files:
+  - ../../beekeeper-keys/bk-server/beekeeper_server_key
+  - ../../beekeeper-keys/bk-server/beekeeper_server_key-cert.pub
+  - ../../beekeeper-keys/bk-server/beekeeper_server_key.pub
+- name: beekeeper-sshd-authorized-keys-secret
+  files:
+  - ../../beekeeper-keys/admin/admin.pem
+  - ../../beekeeper-keys/admin/admin.pem.pub
+- name: beekeeper-api-nodes-secret
+  files:
+  - ../../beekeeper-keys/nodes-key/nodes.pem
+  - ../../beekeeper-keys/nodes-key/nodes.pem.pub
+images:
+- name: waggle/beekeeper-sshd
+  newName: waggle/beekeeper-sshd
+  newTag: latest
+- name: waggle/beekeeper-api
+  newName: waggle/beekeeper-api
+  newTag: latest
