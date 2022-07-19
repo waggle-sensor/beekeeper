@@ -38,14 +38,12 @@ def test_registration(client):
         r = client.post(f'/register?node_id={node_id}')
         assert r.status_code == HTTPStatus.OK
         result = r.get_json()
-        # NOTE(sean) I'm assuming we're using ed25519 just to keep the expected output slim. If we allow multiple key types,
-        # we'll need to make update this.
+        # NOTE(sean) I'm assuming we're using ed25519 just to keep the expected output slim. If we allow multiple key types, we'll need to update this.
         assert re.match("-----BEGIN OPENSSH PRIVATE KEY-----(.|\n)+-----END OPENSSH PRIVATE KEY-----", result["private_key"])
         assert re.match("ssh-ed25519 \S+", result["public_key"])
         assert re.match("ssh-ed25519-cert-v01@openssh.com \S+", result["certificate"])
 
         # Do it twice to make sure the code for the cached version is included
-        # TODO(sean) I'm not sure what behavior this is testing. Is it a cached response? Same status code?
         r = client.post(f'/register?node_id={node_id}')
         assert r.status_code == HTTPStatus.OK
         result2 = r.get_json()
