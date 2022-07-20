@@ -7,6 +7,7 @@ patchesStrategicMerge:
 - compute-resources.yaml
 - exclude-volume-mounts.yaml
 - add-test-nodes-file.yaml
+- exclude-k8s-nodes.yaml
 configMapGenerator:
 - name: beekeeper-api-config
   literals:
