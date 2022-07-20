@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: beekeeper-virtual-node
+  name: beekeeper-virtual-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: beekeeper-virtual-node
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        k8s-app: beekeeper-virtual-node
+    spec:
+      containers:
+        - name: beekeeper-virtual-node
+          image: waggle/node-platforms:0.1.0
+          volumeMounts:
+            - name: ca-secret
+              mountPath: "/etc/waggle/beekeeper_ca_key.pub"
+              subPath: beekeeper_ca_key.pub
+              readOnly: true
+            - name: nodes-secret
+              mountPath: "/root/.ssh/authorized_keys"
+              subPath: nodes.pem.pub
+              readOnly: true
+            - name: nodes-registration
+              mountPath: "/etc/waggle/sage_registration_readonly"
+              subPath: registration
+              readOnly: true
+            - name: nodes-registration
+              mountPath: "/etc/waggle/sage_registration-cert.pub_readonly"
+              subPath: registration-cert.pub
+              readOnly: true
+          envFrom:
+          - configMapRef:
+              name: virtual-node-config
+          - configMapRef:
+              name: beekeeper-api-config
+          - configMapRef:
+              name: beekeeper-config
+          - secretRef:
+              name: beekeeper-api-secret
+          resources:
+            limits:
+              cpu: 1
+              memory: 2Gi
+            requests:
+              cpu: 1
+              memory: 2Gi
+      volumes:
+        - name: virtual-node-config-ini
+          configMap:
+            name: virtual-node-config-ini
+        - name: ca-secret
+          secret:
+            secretName: beekeeper-sshd-ca-secret
+            defaultMode: 0400
+        - name: nodes-secret
+          secret:
+            secretName: beekeeper-api-nodes-secret
+            defaultMode: 0400
+        - name: nodes-registration
+          secret:
+            defaultMode: 0400
+            secretName: beekeeper-nodes-registration
+      restartPolicy: Always
