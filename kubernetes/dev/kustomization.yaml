@@ -10,6 +10,8 @@ patchesStrategicMerge:
 configMapGenerator:
 - name: beekeeper-api-config
   literals:
+  - BEEKEEPER_SSHD_API=http://beekeeper-sshd-api
+  - BEEKEEPER_SSHD_HOST=beekeeper-sshd-adminssh
   - MYSQL_HOST=beekeeper-mysql
   - MYSQL_DATABASE=Beekeeper
   - MYSQL_USER=beekeeper
@@ -37,6 +39,11 @@ secretGenerator:
   files:
   - ../../beekeeper-keys/nodes-key/nodes.pem
   - ../../beekeeper-keys/nodes-key/nodes.pem.pub
+- name: beekeeper-sshd-public-registration-keys
+  files:
+  - ../../beekeeper-keys/registration_keys/registration
+  - ../../beekeeper-keys/registration_keys/registration.pub
+  - ../../beekeeper-keys/registration_certs/untilforever/registration-cert.pub
 images:
 - name: waggle/beekeeper-sshd
   newName: waggle/beekeeper-sshd

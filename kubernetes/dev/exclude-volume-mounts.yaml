@@ -28,9 +28,6 @@ spec:
       - name: beekeeper-sshd
         volumeMounts:
         - $patch: delete
-          name: public-registration-keys
-          mountPath: "/usr/lib/waggle/registration_keys/"
-        - $patch: delete
           name: waggle-authorized-keys
           mountPath: /home/waggle/ssh-template/authorized_keys
         - $patch: delete
