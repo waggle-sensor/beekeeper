@@ -13,11 +13,22 @@ communication keys used by the nodes (i.e. services running on them)
 ## start beekeeper
 
 ```bash
-./create-keys.sh init --nopassword
-./create-keys.sh cert untilforever forever
+docker run --rm -it \
+    -v ${PWD}:/workdir:rw \
+    waggle/beekeeper-key-tools:latest \
+    create-init-keys.sh -p -o beekeeper-keys
+docker run --rm -it \
+    -v ${PWD}:/workdir:rw \
+    waggle/beekeeper-key-tools:latest \
+    create-key-cert.sh \
+    -b my-beehive \
+    -c beekeeper-keys/bk-ca/beekeeper_ca_key \
+    -k beekeeper-keys/node-registration-key/registration \
+    -o beekeeper-keys/registration_certs/untilforever
 docker-compose up --build
 ```
-Note: Options above like `--nopassword` and `forever` should not be used in production.
+
+> Note: the above options are for testing only and should not be used in production.
 
 # Register a beehive with beekeeper (example)
 
@@ -60,7 +71,7 @@ docker logs beekeeper_bk-api_1
 
 SSH to the node (via reverse ssh tunnel)
 ```bash
-ssh -i ./beekeeper-keys/nodes-key/nodes.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@localhost -p 2201 -i ./beekeeper-keys/admin/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@foo
+ssh -i ./beekeeper-keys/node-ssh-key/nodes.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@localhost -p 2201 -i ./beekeeper-keys/bk-admin-ssh-key/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@foo
 ```
 
 
@@ -95,13 +106,7 @@ ansible will copy these files if detected
 
 # create Certs for node
 
-Got to the directory that contains your `beekeeper-keys` folder. Copy `create-keys.sh`, then create the certificate file, for example:
-```
-cp ~/git/beekeeper/create-keys.sh .
-./create-keys.sh cert until20220530 +20220530
-```
-
-
+Got to the directory that contains your `beekeeper-keys` folder. Follow the instructions outlined at https://github.com/waggle-sensor/beekeeper-key-tools for creating a node registration certificate file.
 
 ## Unit Testing
 

@@ -9,7 +9,7 @@ ssh -i ./admin.pem -o "IdentitiesOnly=yes" -p 2201 root@localhost
 
 Ssh into node `0000000000000001`:
 ```console
-ssh -i ./beekeeper-keys/nodes-key/nodes.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@localhost -p 2201 -i ./beekeeper-keys/admin/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@random
+ssh -i ./beekeeper-keys/node-ssh-key/nodes.pem -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o IdentitiesOnly=true -o ProxyCommand="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@localhost -p 2201 -i ./beekeeper-keys/bk-admin-ssh-key/admin.pem  netcat -U /home_dirs/node-0000000000000001/rtun.sock" root@random
 ```
 
 
