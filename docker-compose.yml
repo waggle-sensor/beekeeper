@@ -5,7 +5,7 @@ services:
     build: bk-sshd
     restart: always
     environment:
-        # e.g. SSHD_FLAGS="-ddd"
+      # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
       KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
@@ -13,7 +13,7 @@ services:
       # see .env
     volumes:
       - ./beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
-      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
+      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro # for HostKey and HostCertificate
       - ./beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
   bk-api:
     image: waggle/beekeeper-api:latest
@@ -29,11 +29,11 @@ services:
       #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/nodes.pem:ro
       - ./beekeeper-keys/nodes-key/nodes.pem:/config/nodes/nodes.pem:ro
       - ./test-data:/test-data/:ro
-      - ./bk-api:/usr/src/app     # for easier development
-      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
-      - ./beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
+      - ./bk-api:/usr/src/app # for easier development
+      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro # for HostKey
+      - ./beekeeper-keys/certca/:/usr/lib/waggle/certca:ro # CA needed for signing
     ports:
-      - "127.0.0.1:5000:5000"  # for testing purposes
+      - "127.0.0.1:5000:5000" # for testing purposes
   db:
     image: mysql:8.0.29
     env_file: mysql.env
