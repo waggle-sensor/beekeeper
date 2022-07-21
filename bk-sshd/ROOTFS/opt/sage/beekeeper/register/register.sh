@@ -38,7 +38,7 @@ case "${command}" in
       params="${params}&beehive_id=${beehive}"
     fi
 
-    curl -s -X POST "${bk_register_url}/register?${params}"
+    curl -s --fail -X POST "${bk_register_url}/register?${params}"
     ;;
   *)
     echo "invalid command"
