@@ -18,7 +18,7 @@ configMapGenerator:
   - MYSQL_USER=beekeeper
 - name: beekeeper-test-nodes
   files: 
-  - ../../test-keys/test-nodes.txt
+  - test-nodes.txt
 secretGenerator:
 - name: beekeeper-api-secret
   envs:
