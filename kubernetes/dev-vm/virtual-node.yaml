@@ -19,6 +19,9 @@ spec:
       containers:
         - name: beekeeper-virtual-node
           image: waggle/node-platforms:0.1.0
+          command: [ "bash", "-c"]
+          args:
+          - export ID=$(echo $POD_NAME | sed "s/$APP_NAME//" | sed "s/-//g" | tr '[:lower:]' '[:upper:]') && echo $ID > /etc/waggle/node-id && echo VSN$ID > /etc/waggle/vsn && /entrypoint.sh
           volumeMounts:
             - name: ca-secret
               mountPath: "/etc/waggle/beekeeper_ca_key.pub"
@@ -40,6 +43,15 @@ spec:
               mountPath: "/etc/waggle/config.ini"
               subPath: config.ini
               readOnly: true
+          env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: APP_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['k8s-app']
           envFrom:
           - configMapRef:
               name: virtual-node-config
