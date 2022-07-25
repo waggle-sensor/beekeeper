@@ -1,4 +1,3 @@
-
 import MySQLdb
 import config
 import dateutil.parser
@@ -6,16 +5,7 @@ import sys
 import time
 import logging
 
-
-formatter = logging.Formatter(
-    "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
-)
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setFormatter(formatter)
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
 
 table_fields = {}
 table_fields_index ={}
@@ -38,6 +28,13 @@ class BeekeeperDB():
         if not config.mysql_password:
             raise Exception("MYSQL_PASSWORD is not defined")
 
+        # NOTE(sean) I don't think we want the retry logic to live inside this function but instead managed by the caller.
+        #
+        # For example, if there is a database problem and a client connects to the API, this will keep retrying for multiple
+        # minutes. Even if the client closes the request, the server will continue this retry loop until it times out.
+        #
+        # I think it would be better to immediately fail with some kind of "Service Unavailable" status code instead and leave
+        # it to clients to retry.
         count = 0
         while True:
             try:
@@ -60,6 +57,11 @@ class BeekeeperDB():
         self.db.close()
 
     def nodes_log_add(self, logData, lock_tables=True, lock_requested_by="", replay=True):
+        # TODO(sean) It seems like lock_tables and lock_requested_by are unused, but calls to this
+        # use it throughout the code base. Just based on the name, I assume lock_tables means that
+        # a series of operations is done transactionally? If that true, then I don't understand why
+        # we would ever disable that?
+
         #node_id, table_name, operation, field_name, new_value, source, effective_time=None
         fields = '`node_id`, `table_name`, `operation`, `field_name`, `new_value`, `source`, `effective_time`'
         values_s = '%s, %s, %s, %s, %s, %s, %s'
@@ -402,7 +404,7 @@ class BeekeeperDB():
                                WHERE t2.id = t1.id)
         '''
 
-        print(f'statement: {stmt}', flush=True)
+        logger.debug("statement: %r", stmt)
         self.cur.execute(stmt)
 
         # create list of dicts
@@ -511,7 +513,7 @@ class BeekeeperDB():
 
 
 
-        print(f'debug_stmt: {debug_stmt}', flush=True)
+        logger.debug("debug_stmt: %r", stmt)
         self.cur.execute(stmt, (*values, ))
         if commit:
             self.db.commit()

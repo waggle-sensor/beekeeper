@@ -1,29 +1,20 @@
 version: '3.7'
 services:
-
-
   bk-sshd:
     image: waggle/beekeeper-sshd:latest
     build: bk-sshd
     restart: always
-    #depends_on:
-    #  - bk-register
-    ports:
-      - "127.0.0.1:20022:22"
-      - "127.0.0.1:2201:2201"
-      - "127.0.0.1:24182:80"
     environment:
-        # e.g. SSHD_FLAGS="-ddd"
+      # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
       KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
-      - ${PWD}/beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
-      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
-      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
-
+      - ./beekeeper-keys/bk-admin-ssh-key/admin.pem.pub:/root/.ssh/authorized_keys:ro
+      - ./beekeeper-keys/bk-server-key/:/usr/lib/waggle/bk-server:ro # for HostKey and HostCertificate
+      - ./beekeeper-keys/bk-ca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
   bk-api:
     image: waggle/beekeeper-api:latest
     build: bk-api
@@ -34,40 +25,26 @@ services:
       - mysql.env
       - .env
     volumes:
-      - ${PWD}/beekeeper-keys/admin/admin.pem:/config/admin-key/admin.pem:ro
+      - ./beekeeper-keys/bk-admin-ssh-key/admin.pem:/config/admin-key/admin.pem:ro
       #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/nodes.pem:ro
-      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem:/config/nodes/nodes.pem:ro
-      - ${PWD}/test-data:/test-data/:ro
-      - ${PWD}/bk-api:/usr/src/app     # for easier development
-      - ${PWD}/beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
-      - ${PWD}/beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
+      - ./beekeeper-keys/node-ssh-key/nodes.pem:/config/nodes/nodes.pem:ro
+      - ./test-data:/test-data/:ro
+      - ./bk-api:/usr/src/app # for easier development
+      - ./beekeeper-keys/bk-server-key/:/usr/lib/waggle/bk-server:ro # for HostKey
+      - ./beekeeper-keys/bk-ca/:/usr/lib/waggle/certca:ro # CA needed for signing
     ports:
-      - "5000:5000"  # for testing purposes
-
-
-
+      - "127.0.0.1:5000:5000" # for testing purposes
   db:
-    image: mysql:8.0.20
+    image: mysql:8.0.29
     env_file: mysql.env
     volumes:
-      - ${PWD}/schema.sql:/docker-entrypoint-initdb.d/init.sql
-      - beekeeper-db:/var/lib/mysql
-
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
   node1:
     image: waggle/wes-minimal
     volumes:
-      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
-      - ${PWD}/beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
+      - ./beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
+      - ./beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
       # for /etc/ssh/ssh_known_hosts:
-      - ${PWD}/beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
+      - ./beekeeper-keys/bk-ca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
       # so beekeeper can ssh into it:
-      - ${PWD}/beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
-
-
-volumes:
-  #bk-homedirs:
-  beekeeper-db:
-  #bk-secrets:
-  #  external:
-  #    name: beekeeper-config_bk-secrets
-
+      - ./beekeeper-keys/node-ssh-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro

@@ -11,7 +11,7 @@ import os
 import sys
 
 
-from flask import Flask
+from flask import Flask, current_app
 from flask_cors import CORS
 from flask.views import MethodView
 from flask import jsonify
@@ -42,28 +42,11 @@ import os.path
 import requests
 import re
 
-from sshkeygen import SSHKeyGen, run_command, run_command_communicate
-import traceback
-from werkzeug.utils import secure_filename
+from sshkeygen import SSHKeyGen, run_command_communicate
 
 import linecache
 
-
-formatter = logging.Formatter(
-    "%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s"
-)
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setFormatter(formatter)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.addHandler(handler)
-
-
-
-
-for k, v in sorted(os.environ.items()):
-    print(k+':', v)
-print('\n')
 
 BASE_KEY_DIR = "/usr/lib/waggle"
 #CA_FILE = os.path.join(BASE_KEY_DIR, "certca/beekeeper_ca_key")
@@ -96,10 +79,6 @@ def ShowException():
     return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
 
 
-
-
-
-
 def b64string_encode(input):
     return base64.b64encode(str.encode(input)).decode('utf-8')
 
@@ -117,8 +96,6 @@ def register_node(node_id, lock_tables=True, lock_requested_by=""):
         raise Exception(f"insert_log returned: {str(e)}")
 
 
-    return
-
 def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by=""):
 
     payload = {"node_id": node_id, "source": "beekeeper-wes-deploy", "operation":"insert", "field_name": "wes_deploy_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
@@ -131,8 +108,6 @@ def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by="
         raise Exception(f"insert_log returned: {str(e)}")
 
 
-    return
-
 def set_node_beehive(node_id, beehive_id):
 
     # At this point we already know that beehive exists.
@@ -144,6 +119,12 @@ def set_node_beehive(node_id, beehive_id):
         node_state = bee_db.get_node_state(node_id)
     #except bk_db.ObjectNotFound:
     #    node_state = None
+        # TODO(sean) we may want to make BeekeeperDB a contextmanager so we can just start using:
+        #
+        # with BeekeeperDB() as bee_db:
+        #     ... code which uses database ...
+        #
+        # This could help ensure that we always either commit or rollback changes to the database.
         bee_db.close()
     except Exception as e:
         logger.debug(f"Getting node failed: {str(e)}")
@@ -170,21 +151,12 @@ def set_node_beehive(node_id, beehive_id):
         raise Exception(f"insert_log returned: {str(e)}")
 
 
-    return
-
-
-
-
-
 # register test nodes (use only in development environment)
 def initialize_test_nodes():  # pragma: no cover   this code is not used in production
-
-
     test_nodes_file = os.path.join(BASE_KEY_DIR, "test-nodes.txt")
     if not os.path.isfile(test_nodes_file):
         logger.debug(f"File {test_nodes_file} not found. (only needed in testing)")
         return
-
 
     logger.debug(f"File {test_nodes_file} found. Load test nodes into DB")
 
@@ -282,39 +254,26 @@ def post_node_credentials(node_id, private_key, public_key):
     return
 
 
+def valid_node_id(s):
+    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,16}", s) is not None
+
+
 def _register(node_id):
-    #check_beekeper()
-
-    if not node_id:
-        raise Exception("node_id no defined")
-
-    p = re.compile(f'[A-Z0-9]+', re.ASCII)
-    if not p.fullmatch(node_id):
-        raise Exception("node_id can contain only numbers and upper case characters")
-
-    if len(node_id) < 6:
-        raise Exception("node_id should have at least 6 characters")
-
-    # check if key-pair is available
     try:
         creds = get_node_keypair(node_id)
     except Exception as e:
         raise Exception(f"get_node_keypair returned: {str(e)}")
 
-
-
     key_generator = SSHKeyGen()
 
     if creds:
-        print("got credentials from DB")
+        logger.info("got credentials from DB")
         # Files found in DB,nor write to disk so they can be used to create certififcate
         try:
             key_generator.write_keys_to_files(node_id, creds["private_key"], creds["public_key"])
         except Exception as e:
             raise Exception(f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}")
-
     else:
-
         # generate new keys sizgned by the CA for custom tunnel to beekeeper
         # create a user somewhere to allow the "node specific user" to connect
         logger.debug("- generate key pair (no credentials in DB yet)")
@@ -332,9 +291,6 @@ def _register(node_id):
         if not key in creds:
             raise Exception(f"{key} is missing")
 
-
-
-
     logger.debug("- generate certificate")
     try:
         cert_obj = key_generator.create_reverse_tunnel_certificate(node_id, CA_FILE) # returns { "certificate": certificate, "user": user}
@@ -346,8 +302,6 @@ def _register(node_id):
 
     data["id"] = user # note that this is ID prefixed with "node_"
     data["certificate"] = cert_obj["certificate"]
-
-
 
     #data = {
     #    "id": key_generator.results["user"], # note that this is ID prfixed with "node_"
@@ -688,7 +642,6 @@ def kube_secret(name, data):
 
 # force: create new certs even if old ones exist
 def deploy_wes(node_id, this_debug, force=False):
-
     logger.debug("(deploy_wes) determine correct beehive")
 
     assign_beehive = ""
@@ -724,10 +677,9 @@ def deploy_wes(node_id, this_debug, force=False):
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
 
-    logger.debug(f"(deploy_wes) using beehive {beehive_id}")
+    logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
-
-    # first check if kubectl work on the node
+    logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
     try:
         result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
     except Exception as e:
@@ -848,8 +800,6 @@ def deploy_wes(node_id, this_debug, force=False):
     else:
         logger.info("/config/node-private-git-repo-key/node-private-git-repo-key not found, skipping")
 
-
-
     final_command = "./update-stack.sh"
     if FAKE_DEPLOYMENT:
         final_command = "echo \"This fake deployment was successful\""
@@ -905,9 +855,7 @@ cd /opt/waggle-edge-stack/kubernetes
 
 
 
-def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False ):
-
-
+def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
@@ -1040,18 +988,18 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
 
 # /node/<node_id>
 class Node(MethodView):
+
+    # TODO(sean) We should review the public endpoints. I personally find it odd that we can post to /node
+    # but must get node info from /state.
     def get(self, node_id):
-        return { "error" : "nothing here, use the /state resource instead " }
+        return {"error" : "nothing here, use the /state resource instead "}
 
     # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
     #          curl localhost:5000/node/xxx -d '{"deploy_wes": true}'
     def post(self, node_id):
         try:
-#request.get
             postData = request.get_json(force=True, silent=False)
-
         except Exception as e:
-
             raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         this_debug = request.args.get('debug', "false") in ["true", "1"]
@@ -1065,22 +1013,15 @@ class Node(MethodView):
                 logger.error(e)
                 raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-
-
         if "deploy_wes" in postData:
-
             try:
                 result = deploy_wes(node_id, this_debug, force=force)
             except Exception as e:
                 logger.error(e)
                 raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
             return jsonify(result)
 
-
-
-
-        return jsonify({"success":True})
+        return jsonify({"success": True})
 
 
 class BeehivesList(MethodView):
@@ -1299,15 +1240,11 @@ class Credentials(MethodView):
         return jsonify({"deleted": result_count})
 
 
-
-
-
-#@app.route("/register")
 class Registration(MethodView):
 
     # example: curl localhost:5000/register?id=xxx
     # this creates id: node-xxx
-    def get(self):
+    def post(self):
         """API to create keys, certificate and user for end-point.
 
         Arguments:
@@ -1316,101 +1253,93 @@ class Registration(MethodView):
         Returns:
             dict: end-point id, private key, public key and certificate
         """
-        node_id = request.args.get("id", type=str)
+        logger.info("registration request: %r", request.args)
+
+        node_id = request.args.get("node_id", type=str)
+
         if not node_id:
-            logger.debug("Registration failed: id missing")
-            return f"Error: id missing\n", 500
+            return "error: node_id must be provided.\n", HTTPStatus.BAD_REQUEST
 
-        logger.debug("Register user [{}]".format(node_id))
+        if not valid_node_id(node_id):
+            return "error: invalid node id.\n", HTTPStatus.BAD_REQUEST
 
+        beehive_id = request.args.get("beehive_id", DEFAULT_BEEHIVE, type=str)
 
-        if DEFAULT_BEEHIVE:
-            # first check the default beehive exists
+        if beehive_id:
             try:
                 bee_db = BeekeeperDB()
-                beehive_obj = bee_db.get_beehive(DEFAULT_BEEHIVE)
+                beehive_obj = bee_db.get_beehive(beehive_id)
                 bee_db.close()
             except Exception as e:
-                raise Exception(f"error: get_beehive returned: {str(e)}")
+                raise Exception(f"error: get_beehive returned: {e}")
 
             if not beehive_obj:
-                raise Exception(f"error: Beehive {DEFAULT_BEEHIVE} is not known yet" )
+                logger.error("registration error: beehive does not exist: %r", request.args)
+                return "error: beehive not found", HTTPStatus.NOT_FOUND
 
         try:
             # create keypair and certificates for node (idempotent function)
-            registration_result =  _register(node_id)
+            registration_result = _register(node_id)
         except Exception as e:
-            logger.debug(f"_register failed: {str(e)}")
-            traceback.print_exc()
-            logger.debug(f"Error: unable to register id [{node_id} , {str(e)}]")
-            return f"Error: unable to register id [{node_id} , {str(e)}]\n", 500
+            logger.exception("registration error: _register: %r", request.args)
+            return f"error: unable to register id [{node_id} , {e}]\n", HTTPStatus.INTERNAL_SERVER_ERROR
 
         # update beekeeper db (create registartion event)
         try:
             register_node(node_id, lock_requested_by="register-resource")
         except Exception as e:
-            logger.debug(f"Error: Creating registration event failed: {str(e)}")
-            return f"Error: Creating registration event failed: {str(e)}", 500
+            logger.exception("registration error: register_node: %r", request.args)
+            return f"Error: Creating registration event failed: {str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR
 
-
-        if DEFAULT_BEEHIVE:
+        if beehive_id:
             time.sleep(2) # see if that helps with the locks
-            logger.debug("Adding user [{}] to default beehive".format(node_id))
+            # TODO(sean) Review how locks are used. I'm concerned that a sleep is supposed to "help with the locks".
             try:
-                set_node_beehive(node_id, DEFAULT_BEEHIVE)
+                set_node_beehive(node_id, beehive_id)
             except Exception as e:
-                logger.debug(f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}")
-                # Do not let registration fail because of this
-                return f"Error: Adding node to beehive {DEFAULT_BEEHIVE} failed: {str(e)}", 500
-        else:
-            logger.debug("No default beehive defined")
+                logger.exception("registration error: set_node_beehive: %r", request.args)
+                return f"Error: Adding node to beehive {beehive_id} failed: {e}", HTTPStatus.INTERNAL_SERVER_ERROR
 
-
-        logger.debug(f"success: responding with registration results")
-        #return json.dumps(registration_result)
+        logger.info("registration ok: %r", request.args)
         return registration_result
 
 
+def create_app(test_config=None):
+    app = Flask(__name__, instance_relative_config=True)
 
+    logging.basicConfig(level=logging.INFO,
+        format="%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s")
 
-app = Flask(__name__)
-CORS(app)
-app.logger.setLevel(logging.DEBUG)
-app.config["PROPAGATE_EXCEPTIONS"] = True
-#app.wsgi_app = ecr_middleware(app.wsgi_app)
+    CORS(app)
 
-app.add_url_rule('/', view_func=Root.as_view('root'))
-app.add_url_rule('/log', view_func=Log.as_view('log'))
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
-app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
+    app.add_url_rule('/', view_func=Root.as_view('root'))
+    app.add_url_rule('/log', view_func=Log.as_view('log'))
 
-app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
-app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
-app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
+    app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
 
-# administrative functionality: e.g. assign beehive
-app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
-app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
-app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
+    app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
+    app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
+    app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
 
-# this is where nodes register
-app.add_url_rule('/register', view_func=Registration.as_view('registration'))
+    # administrative functionality: e.g. assign beehive
+    app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
+    app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
+    app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
 
-@app.errorhandler(ErrorResponse)
-def handle_invalid_usage(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
+    # this is where nodes register
+    app.add_url_rule('/register', view_func=Registration.as_view('registration'))
 
-
-def setup_app(app):
-
-
-
+    @app.errorhandler(ErrorResponse)
+    def handle_invalid_usage(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        return response
 
    # All your initialization code
     bee_db = BeekeeperDB()
-
 
     for table_name in ['nodes_log', 'nodes_history', 'beehives']:
 
@@ -1433,16 +1362,11 @@ def setup_app(app):
     logger.debug(table_fields)
     logger.debug(table_fields_index)
 
-
     initialize_test_nodes()
 
+    return app
 
 
-
-setup_app(app)
-
-
-if __name__ == '__main__':
-
-    app.run(debug=False, host='0.0.0.0')
-    #app.run()
+if __name__ == "__main__":
+    app = create_app()
+    app.run()

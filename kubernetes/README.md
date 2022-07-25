@@ -100,7 +100,7 @@ kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SELECT Us
 `beekeeper-api.secret.yaml` has been loaded in the previous step.
 
 
-Credentials have been created in directory `beekeeper-keys` using the `create-keys.sh` script.
+Credentials have been created in directory `beekeeper-keys`.
 
 
 
