@@ -5,16 +5,16 @@ services:
     build: bk-sshd
     restart: always
     environment:
-        # e.g. SSHD_FLAGS="-ddd"
+      # e.g. SSHD_FLAGS="-ddd"
       SSHD_FLAGS: ""
       KEY_GEN_TYPE: ${KEY_GEN_TYPE}
       KEY_GEN_ARGS: ${KEY_GEN_ARGS}
       USE_CONFIG_VOLUME: ${USE_CONFIG_VOLUME}
       # see .env
     volumes:
-      - ./beekeeper-keys/admin/admin.pem.pub:/root/.ssh/authorized_keys:ro
-      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey and HostCertificate
-      - ./beekeeper-keys/certca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
+      - ./beekeeper-keys/bk-admin-ssh-key/admin.pem.pub:/root/.ssh/authorized_keys:ro
+      - ./beekeeper-keys/bk-server-key/:/usr/lib/waggle/bk-server:ro # for HostKey and HostCertificate
+      - ./beekeeper-keys/bk-ca/beekeeper_ca_key.pub:/usr/lib/waggle/certca/beekeeper_ca_key.pub #TrustedUserCAKeys
   bk-api:
     image: waggle/beekeeper-api:latest
     build: bk-api
@@ -25,15 +25,15 @@ services:
       - mysql.env
       - .env
     volumes:
-      - ./beekeeper-keys/admin/admin.pem:/config/admin-key/admin.pem:ro
+      - ./beekeeper-keys/bk-admin-ssh-key/admin.pem:/config/admin-key/admin.pem:ro
       #- ${HOME}/git/waggle-edge-stack/.vagrant/machines/default/virtualbox/private_key:/config/nodes/nodes.pem:ro
-      - ./beekeeper-keys/nodes-key/nodes.pem:/config/nodes/nodes.pem:ro
+      - ./beekeeper-keys/node-ssh-key/nodes.pem:/config/nodes/nodes.pem:ro
       - ./test-data:/test-data/:ro
-      - ./bk-api:/usr/src/app     # for easier development
-      - ./beekeeper-keys/bk-server/:/usr/lib/waggle/bk-server:ro  # for HostKey
-      - ./beekeeper-keys/certca/:/usr/lib/waggle/certca:ro         # CA needed for signing
+      - ./bk-api:/usr/src/app # for easier development
+      - ./beekeeper-keys/bk-server-key/:/usr/lib/waggle/bk-server:ro # for HostKey
+      - ./beekeeper-keys/bk-ca/:/usr/lib/waggle/certca:ro # CA needed for signing
     ports:
-      - "127.0.0.1:5000:5000"  # for testing purposes
+      - "127.0.0.1:5000:5000" # for testing purposes
   db:
     image: mysql:8.0.29
     env_file: mysql.env
@@ -45,6 +45,6 @@ services:
       - ./beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
       - ./beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
       # for /etc/ssh/ssh_known_hosts:
-      - ./beekeeper-keys/certca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
+      - ./beekeeper-keys/bk-ca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
       # so beekeeper can ssh into it:
-      - ./beekeeper-keys/nodes-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
+      - ./beekeeper-keys/node-ssh-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
