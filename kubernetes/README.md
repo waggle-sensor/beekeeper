@@ -242,3 +242,8 @@ Check the state of beekeeper:
 ```
 curl https://bk.nrp-nautilus.io/state | jq
 ```
+
+Spawn many virtual nodes for the `dev-vm` overlay:
+```
+kubectl scale --replicas=25 deployment beekeeper-virtual-node 
+```
