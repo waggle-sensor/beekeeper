@@ -186,6 +186,9 @@ Overlays:
   - Exclude volume mounts meant for production
   - Change the compute resources (CPU and memory) on each deployment
   - Generates all the secrets and confimaps for beekeeper using the kustomize generator.
+- dev-vm: development overlay that modifies the `dev` overlay with the following changes:
+  - Adds a [virtual node](https://github.com/waggle-sensor/node-platforms/tree/main/vm) to populate the DB and stress test the SSHD service
+  - Adds certs and keys to virtual node so that the `SSHD` service is able to establish a connection
 
 This assumes that the mysql helm chart is deployed:
 ```
@@ -199,8 +202,18 @@ Note:
 
 Generate dev Beekeeper keys (if not generated):
 ```
-./create-keys.sh init --nopassword
-./create-keys.sh cert untilforever forever
+docker run --rm -it \
+    -v ${PWD}:/workdir:rw \
+    waggle/beekeeper-key-tools:latest \
+    create-init-keys.sh -p -o beekeeper-keys
+docker run --rm -it \
+    -v ${PWD}:/workdir:rw \
+    waggle/beekeeper-key-tools:latest \
+    create-key-cert.sh \
+    -b my-beehive \
+    -c beekeeper-keys/bk-ca/beekeeper_ca_key \
+    -k beekeeper-keys/node-registration-key/registration \
+    -o beekeeper-keys/registration_certs/untilforever
 ```
 
 Get Nautilus kube config file from [here](https://portal.nrp-nautilus.io/)
