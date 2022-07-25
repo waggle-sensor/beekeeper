@@ -25,25 +25,25 @@ secretGenerator:
   - mysql-secrets.env
 - name: beekeeper-sshd-ca-secret
   files:
-  - ../../beekeeper-keys/certca/beekeeper_ca_key
-  - ../../beekeeper-keys/certca/beekeeper_ca_key.pub
+  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key
+  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key.pub
 - name: beekeeper-sshd-server-secret
   files:
-  - ../../beekeeper-keys/bk-server/beekeeper_server_key
-  - ../../beekeeper-keys/bk-server/beekeeper_server_key-cert.pub
-  - ../../beekeeper-keys/bk-server/beekeeper_server_key.pub
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key-cert.pub
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key.pub
 - name: beekeeper-sshd-authorized-keys-secret
   files:
-  - ../../beekeeper-keys/admin/admin.pem
-  - ../../beekeeper-keys/admin/admin.pem.pub
+  - ../../beekeeper-keys/bk-admin-ssh-key/admin.pem
+  - ../../beekeeper-keys/bk-admin-ssh-key/admin.pem.pub
 - name: beekeeper-api-nodes-secret
   files:
-  - ../../beekeeper-keys/nodes-key/nodes.pem
-  - ../../beekeeper-keys/nodes-key/nodes.pem.pub
+  - ../../beekeeper-keys/node-ssh-key/nodes.pem
+  - ../../beekeeper-keys/node-ssh-key/nodes.pem.pub
 - name: beekeeper-sshd-public-registration-keys
   files:
-  - ../../beekeeper-keys/registration_keys/registration
-  - ../../beekeeper-keys/registration_keys/registration.pub
+  - ../../beekeeper-keys/node-registration-key/registration
+  - ../../beekeeper-keys/node-registration-key/registration.pub
   - ../../beekeeper-keys/registration_certs/untilforever/registration-cert.pub
 images:
 - name: waggle/beekeeper-sshd
