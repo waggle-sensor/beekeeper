@@ -539,17 +539,25 @@ def scp(source, node_id, target):
 
 
 
-def node_ssh(node_id, command, input_str=None):
+def node_ssh(node_id, command, input_str=None, quiet_mode=False):
+    proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
     ssh_cmd =  ["ssh",
-            #"-tt",
-            "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "IdentitiesOnly=true",
-            "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
-            f"root@foo:",
-            command]
+                #"-tt",
+                "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "IdentitiesOnly=true",
+                ]
 
+    if quiet_mode:
+        proxy_cmd += " -q"
+        ssh_cmd.append('-q')
+
+    proxy_cmd += f" netcat -U /home_dirs/node-{node_id}/rtun.sock"
+    ssh_cmd.append("-o")
+    ssh_cmd.append(proxy_cmd)
+    ssh_cmd.append(f"root@foo:")
+    ssh_cmd.append(command)
 
     ssh_cmd_str = " ".join(ssh_cmd)
     logger.debug(ssh_cmd_str)
