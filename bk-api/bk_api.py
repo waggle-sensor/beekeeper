@@ -860,8 +860,34 @@ cd /opt/waggle-edge-stack/kubernetes
 
     return {"success":True}
 
+def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
 
+    payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
+                "field_name": "vsn", "field_value": field_value}
 
+    try:
+        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
+    except Exception as e:
+        raise Exception(f"insert_log returned: {str(e)}")
+    return
+
+def add_vsn(node_id):
+    command = "cat /etc/waggle/vsn"
+    try:
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command, quiet_mode=True)
+        logger.debug(f"(add_vsn) vsn on node: {result_stdout_str}")
+    except Exception as e:
+        raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
+
+    vsn_val_str = result_stdout_str.strip()
+    if vsn_val_str == '':
+        raise Exception(f"vsn is empty: {vsn_val_str}")
+
+    try:
+        add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn_retrieval")
+    except Exception as e:
+        raise Exception(f"add_vsn_event_failed failed: {str(e)}")
+    return {"success":True}
 
 def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
@@ -1028,6 +1054,14 @@ class Node(MethodView):
                 logger.error(e)
                 raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
             return jsonify(result)
+
+        if "vsn" in postData:
+            try:
+                result = add_vsn(node_id)
+            except Exception as e:
+                logger.error(e)
+                raise ErrorResponse(f"add_vsn returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
 
         return jsonify({"success": True})
 
