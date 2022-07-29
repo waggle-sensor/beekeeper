@@ -11,8 +11,6 @@ patchesStrategicMerge:
 configMapGenerator:
 - name: virtual-node-config
   literals:
-  - VSN=vsn1
-  - NODE_ID=0000000000000001
   - BK_API_HOST=beekeeper-api
   - BK_REGISTRATION_HOST=beekeeper-sshd-adminssh
   - BK_REGISTRATION_PORT=2201
