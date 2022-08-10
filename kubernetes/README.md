@@ -97,6 +97,8 @@ kubectl exec -ti mysql-0 -- mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SELECT Us
 
 # prepare beekeeper secrets
 
+> The below steps have been deprecated since the split of the CA key between a public key configMap and a private key secret. The content below remains as a potential helpful reference.
+
 `beekeeper-api.secret.yaml` has been loaded in the previous step.
 
 
