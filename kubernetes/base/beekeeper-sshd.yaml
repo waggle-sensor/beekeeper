@@ -99,18 +99,17 @@ spec:
               cpu: "2000m"
               memory: "4Gi"
           volumeMounts:
-            - name: ca-secret
-              mountPath: "/usr/lib/waggle/certca/"
+            - name: ca-public
+              subPath: beekeeper_ca_key.pub
+              mountPath: /usr/lib/waggle/certca/beekeeper_ca_key.pub
               readOnly: true
             - name: server-secret
               mountPath: "/usr/lib/waggle/bk-server/"
               #mountPath: "/usr/lib/waggle/bk-server/"
               readOnly: true
-
             - name: public-registration-keys
               mountPath: "/usr/lib/waggle/registration_keys/"
               readOnly: true
-
             - name: sshd-config
               mountPath: "/config"
               readOnly: true
@@ -125,7 +124,6 @@ spec:
             - name: optional-init-script
               mountPath: /entrypoint-config/run.sh
               subPath: run.sh
-
           env:
             - name: KEY_GEN_TYPE
               valueFrom:
@@ -137,7 +135,6 @@ spec:
                 configMapKeyRef:
                   name: beekeeper-config
                   key: KEY_GEN_ARGS
-
             - name: SSHD_FLAGS
               valueFrom:
                 configMapKeyRef:
@@ -153,7 +150,6 @@ spec:
                 configMapKeyRef:
                   name: beekeeper-sshd-config
                   key: BEEKEEPER_DB_API
-
           ports:
             - name: api
               containerPort: 80
@@ -172,26 +168,19 @@ spec:
           secret:
             defaultMode: 0400
             secretName: beekeeper-sshd-authorized-keys-secret
-
         - name: server-secret
           secret:
             secretName: beekeeper-sshd-server-secret
             defaultMode: 0400
-
-        - name: ca-secret
-          secret:
-            secretName: beekeeper-sshd-ca-secret
+        - name: ca-public
+          configMap:
+            name: beekeeper-sshd-ca-public
             defaultMode: 0400
-            items:
-              - key: beekeeper_ca_key.pub
-                path: beekeeper_ca_key.pub
-
         - name: waggle-authorized-keys
           configMap:
             name: waggle-authorized-keys
             optional: true
             defaultMode: 0600
-
         - name: optional-init-script
           configMap:
             name: beekeeper-sshd-init-script
