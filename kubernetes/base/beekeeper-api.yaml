@@ -65,8 +65,13 @@ spec:
         - name: beekeeper-api
           image: waggle/beekeeper-api:latest
           volumeMounts:
-            - name: ca-secret
-              mountPath: "/usr/lib/waggle/certca/"
+            - name: ca-public
+              subPath: beekeeper_ca_key.pub
+              mountPath: /usr/lib/waggle/certca/beekeeper_ca_key.pub
+              readOnly: true
+            - name: ca-private
+              subPath: beekeeper_ca_key
+              mountPath: /usr/lib/waggle/certca/beekeeper_ca_key
               readOnly: true
             - name: nodes-secret
               mountPath: "/config/nodes/nodes.pem"
@@ -96,9 +101,13 @@ spec:
               containerPort: 5000
 
       volumes:
-        - name: ca-secret
+        - name: ca-public
+          configMap:
+            name: beekeeper-sshd-ca-public
+            defaultMode: 0400
+        - name: ca-private
           secret:
-            secretName: beekeeper-sshd-ca-secret
+            secretName: beekeeper-sshd-ca-private-secret
             defaultMode: 0400
         - name: nodes-secret
           secret:
