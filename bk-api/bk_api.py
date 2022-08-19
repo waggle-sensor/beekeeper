@@ -879,7 +879,7 @@ def add_vsn(node_id):
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
 
-    vsn_val_str = result_stdout_str.strip()
+    vsn_val_str = result_stdout_str.strip().upper()
     if vsn_val_str == '':
         raise Exception(f"vsn is empty: {vsn_val_str}")
 
