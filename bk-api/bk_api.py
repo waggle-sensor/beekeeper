@@ -539,17 +539,25 @@ def scp(source, node_id, target):
 
 
 
-def node_ssh(node_id, command, input_str=None):
+def node_ssh(node_id, command, input_str=None, quiet_mode=False):
+    proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
     ssh_cmd =  ["ssh",
-            #"-tt",
-            "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "IdentitiesOnly=true",
-            "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
-            f"root@foo:",
-            command]
+                #"-tt",
+                "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "IdentitiesOnly=true",
+                ]
 
+    if quiet_mode:
+        proxy_cmd += " -q"
+        ssh_cmd.append('-q')
+
+    proxy_cmd += f" netcat -U /home_dirs/node-{node_id}/rtun.sock"
+    ssh_cmd.append("-o")
+    ssh_cmd.append(proxy_cmd)
+    ssh_cmd.append(f"root@foo:")
+    ssh_cmd.append(command)
 
     ssh_cmd_str = " ".join(ssh_cmd)
     logger.debug(ssh_cmd_str)
@@ -852,8 +860,34 @@ cd /opt/waggle-edge-stack/kubernetes
 
     return {"success":True}
 
+def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
 
+    payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
+                "field_name": "vsn", "field_value": field_value}
 
+    try:
+        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
+    except Exception as e:
+        raise Exception(f"insert_log returned: {str(e)}")
+    return
+
+def add_vsn(node_id):
+    command = "cat /etc/waggle/vsn"
+    try:
+        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command, quiet_mode=True)
+        logger.debug(f"(add_vsn) vsn on node: {result_stdout_str}")
+    except Exception as e:
+        raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
+
+    vsn_val_str = result_stdout_str.strip().upper()
+    if vsn_val_str == '':
+        raise Exception(f"vsn is empty: {vsn_val_str}")
+
+    try:
+        add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn_retrieval")
+    except Exception as e:
+        raise Exception(f"add_vsn_event_failed failed: {str(e)}")
+    return {"success":True}
 
 def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
@@ -1020,6 +1054,14 @@ class Node(MethodView):
                 logger.error(e)
                 raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
             return jsonify(result)
+
+        if "vsn" in postData:
+            try:
+                result = add_vsn(node_id)
+            except Exception as e:
+                logger.error(e)
+                raise ErrorResponse(f"add_vsn returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+
 
         return jsonify({"success": True})
 

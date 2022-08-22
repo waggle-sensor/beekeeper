@@ -165,7 +165,30 @@ def test_log_insert_fail(client):
     result = rv.get_json()
     assert 'error'  in result
 
+def test_vsn_insert(client):
+    #Check that the initial value is null
+    rv = client.get(f'/state/0000000000000001')
+    result_before_vsn = rv.get_json()
+    assert 'error' not in result_before_vsn
+    assert 'data' in result_before_vsn
+    d_before_vsn = result_before_vsn["data"]["vsn"]
+    assert None == d_before_vsn
+    #Check that we can populate vsn
+    data = {"vsn": True}
+    rv = client.post('/node/0000000000000001', data = json.dumps(data))
+    result = rv.get_json()
+    assert "success" in result
+    #Check that the db is updated with the new value
+    gt_value = "TEST-MINIMAL"
+    rv = client.get(f'/state/0000000000000001')
+    result = rv.get_json()
+    print(result)
+    assert 'error' not in result
+    assert 'data' in result
 
+    d_after_vsn = result["data"]["vsn"]
+    assert d_before_vsn != d_after_vsn
+    assert d_after_vsn == gt_value
 
 # TODO test full replay without timestamp
 def test_log_insert(client):
@@ -204,6 +227,7 @@ def test_log_insert(client):
         'server_node': None,
         'timestamp': (test_time - datetime.timedelta(days= 1)).isoformat(),
         'registration_event': (test_time - datetime.timedelta(days= 5)).isoformat(),
+        'vsn': None,
         'wes_deploy_event': None
     }
 

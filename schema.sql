@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS Beekeeper.nodes_history (
     PRIMARY KEY(`id`, `timestamp`)
 );
 
+/* Alter table with new column if it does not exist */
+ALTER TABLE Beekeeper.nodes_history ADD vsn VARCHAR(64);
+
 /*
 CREATE TABLE IF NOT EXISTS Beekeeper.node_credentials (
 #    `id`                    VARCHAR(64),

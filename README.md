@@ -57,7 +57,13 @@ curl localhost:5000/beehives/my-beehive | jq .
 ```
 # assign node to a beehive
 
-This will only work once node has registered.
+The next set of commands will only work once the node has registered.
+
+VSN can be obtained from the node by:
+```bash
+curl localhost:5000/node/0000000000000001 -d '{"vsn": true}'
+```
+Getting the VSN can be done before or after the assignment of beehive or deploying the wes services.
 
 ```bash
 curl localhost:5000/node/0000000000000001 -d '{"assign_beehive": "my-beehive"}'
