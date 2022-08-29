@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../dev
+resources:
+- virtual-node.yaml
+patchesStrategicMerge:
+- exclude-test-nodes-file.yaml
+- compute-resources.yaml
+- exclude-k8s-nodes.yaml
+configMapGenerator:
+- name: virtual-node-config
+  literals:
+  - BK_API_HOST=beekeeper-api
+  - BK_REGISTRATION_HOST=beekeeper-sshd-adminssh
+  - BK_REGISTRATION_PORT=2201
+- name: virtual-node-config-ini
+  files:
+  - config.ini
+secretGenerator:
+- name: beekeeper-nodes-registration
+  files:
+  - ../../beekeeper-keys/registration_certs/untilforever/registration
+  - ../../beekeeper-keys/registration_certs/untilforever/registration-cert.pub
+images:
+- name: waggle/beekeeper-sshd
+  newName: waggle/beekeeper-sshd
+  newTag: latest
+- name: waggle/beekeeper-api
+  newName: waggle/beekeeper-api
+  newTag: latest
+- name: waggle/node-platforms
+  newName: waggle/node-platforms
+  newTag: latest

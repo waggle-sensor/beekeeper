@@ -1,0 +1,56 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../base
+patchesStrategicMerge:
+- ingress.yaml
+- compute-resources.yaml
+- exclude-volume-mounts.yaml
+- add-test-nodes-file.yaml
+- exclude-k8s-nodes.yaml
+configMapGenerator:
+- name: beekeeper-api-config
+  literals:
+  - BEEKEEPER_SSHD_API=http://beekeeper-sshd-api
+  - BEEKEEPER_SSHD_HOST=beekeeper-sshd-adminssh
+  - MYSQL_HOST=beekeeper-mysql
+  - MYSQL_DATABASE=Beekeeper
+  - MYSQL_USER=beekeeper
+- name: beekeeper-test-nodes
+  files: 
+  - test-nodes.txt
+- name: beekeeper-sshd-ca-public
+  files:
+  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key.pub
+secretGenerator:
+- name: beekeeper-api-secret
+  envs:
+  - mysql-secrets.env
+- name: beekeeper-sshd-ca-private-secret
+  files:
+  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key
+- name: beekeeper-sshd-server-secret
+  files:
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key-cert.pub
+  - ../../beekeeper-keys/bk-server-key/beekeeper_server_key.pub
+- name: beekeeper-sshd-authorized-keys-secret
+  files:
+  - ../../beekeeper-keys/bk-admin-ssh-key/admin.pem
+  - ../../beekeeper-keys/bk-admin-ssh-key/admin.pem.pub
+- name: beekeeper-api-nodes-secret
+  files:
+  - ../../beekeeper-keys/node-ssh-key/nodes.pem
+  - ../../beekeeper-keys/node-ssh-key/nodes.pem.pub
+- name: beekeeper-sshd-public-registration-keys
+  files:
+  - ../../beekeeper-keys/node-registration-key/registration
+  - ../../beekeeper-keys/node-registration-key/registration.pub
+  - ../../beekeeper-keys/registration_certs/untilforever/registration-cert.pub
+images:
+- name: waggle/beekeeper-sshd
+  newName: waggle/beekeeper-sshd
+  newTag: latest
+- name: waggle/beekeeper-api
+  newName: waggle/beekeeper-api
+  newTag: latest

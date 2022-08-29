@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beekeeper-api
+spec:
+  template:
+    spec:
+      containers:
+      - $patch: delete
+        name: deploy-manager
+      - name: beekeeper-api
+        volumeMounts:
+        - $patch: delete
+          mountPath: /config/node-private-git-repo-key/node-private-git-repo-key
+          name: node-private-git-repo-key
+      volumes:
+      - $patch: delete
+        name: node-private-git-repo-key
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beekeeper-sshd
+spec:
+  template:
+    spec:
+      containers:
+      - name: beekeeper-sshd
+        volumeMounts:
+        - $patch: delete
+          name: waggle-authorized-keys
+          mountPath: /home/waggle/ssh-template/authorized_keys
+        - $patch: delete
+          name: optional-init-script
+          mountPath: /entrypoint-config/run.sh
+      volumes:
+      - $patch: delete
+        name: waggle-authorized-keys
+      - $patch: delete
+        name: optional-init-script
+        
