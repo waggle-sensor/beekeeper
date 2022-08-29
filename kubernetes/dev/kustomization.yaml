@@ -19,14 +19,16 @@ configMapGenerator:
 - name: beekeeper-test-nodes
   files: 
   - test-nodes.txt
+- name: beekeeper-sshd-ca-public
+  files:
+  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key.pub
 secretGenerator:
 - name: beekeeper-api-secret
   envs:
   - mysql-secrets.env
-- name: beekeeper-sshd-ca-secret
+- name: beekeeper-sshd-ca-private-secret
   files:
   - ../../beekeeper-keys/bk-ca/beekeeper_ca_key
-  - ../../beekeeper-keys/bk-ca/beekeeper_ca_key.pub
 - name: beekeeper-sshd-server-secret
   files:
   - ../../beekeeper-keys/bk-server-key/beekeeper_server_key

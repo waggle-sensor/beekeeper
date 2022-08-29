@@ -23,7 +23,7 @@ spec:
           args:
           - export ID=$(echo $POD_NAME | sed "s/$APP_NAME//" | sed "s/-//g" | tr '[:lower:]' '[:upper:]') && echo $ID > /etc/waggle/node-id && echo VSN$ID > /etc/waggle/vsn && /entrypoint.sh
           volumeMounts:
-            - name: ca-secret
+            - name: ca-public
               mountPath: "/etc/waggle/beekeeper_ca_key.pub"
               subPath: beekeeper_ca_key.pub
               readOnly: true
@@ -72,10 +72,9 @@ spec:
         - name: virtual-node-config-ini
           configMap:
             name: virtual-node-config-ini
-        - name: ca-secret
-          secret:
-            secretName: beekeeper-sshd-ca-secret
-            defaultMode: 0400
+        - name: ca-public
+          configMap:
+            name: beekeeper-sshd-ca-public
         - name: nodes-secret
           secret:
             secretName: beekeeper-api-nodes-secret
