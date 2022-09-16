@@ -687,6 +687,8 @@ def deploy_wes(node_id, this_debug, force=False):
 
     logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
+    # NOTE(sean) it is important to keep this step before certificate generation. we want to make
+    # sure that in the case a node is not ready, we do not wastefully generate certificates.
     logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
     try:
         result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
@@ -695,7 +697,6 @@ def deploy_wes(node_id, this_debug, force=False):
 
     if exit_code != 0:
         raise Exception(f"ssh failed or kubectl is not yet ready ({result_stderr_str})")
-
 
     logger.debug("calling create_ssh_upload_cert")
     try:
@@ -1061,7 +1062,6 @@ class Node(MethodView):
             except Exception as e:
                 logger.error(e)
                 raise ErrorResponse(f"add_vsn returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
 
         return jsonify({"success": True})
 
