@@ -21,7 +21,7 @@ spec:
           image: waggle/node-platforms:0.1.0
           command: [ "bash", "-c"]
           args:
-          - export ID=$(echo $POD_NAME | sed "s/$APP_NAME//" | sed "s/-//g" | tr '[:lower:]' '[:upper:]') && echo $ID > /etc/waggle/node-id && echo VSN$ID > /etc/waggle/vsn && /entrypoint.sh
+          - export ID=$(echo $POD_NAME | sed "s/$APP_NAME//" | sed "s/-//g" | tr '[:lower:]' '[:upper:]') && echo $ID > /etc/waggle/node-id && echo $ID > /etc/waggle/vsn && /entrypoint.sh
           volumeMounts:
             - name: ca-public
               mountPath: "/etc/waggle/beekeeper_ca_key.pub"

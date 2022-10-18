@@ -25,10 +25,10 @@ secretGenerator:
 images:
 - name: waggle/beekeeper-sshd
   newName: waggle/beekeeper-sshd
-  newTag: latest
+  newTag: v0.7.0
 - name: waggle/beekeeper-api
   newName: waggle/beekeeper-api
-  newTag: latest
+  newTag: v0.7.0
 - name: waggle/node-platforms
   newName: waggle/node-platforms
-  newTag: latest
+  newTag: 0.2.0
