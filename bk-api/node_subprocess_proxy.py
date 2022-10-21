@@ -11,9 +11,9 @@ class NodeSubprocessProxy:
         self.proxy_key = proxy_key
         self.proxy_user = proxy_user
         self.extra_args = []
-
         if quiet:
             self.extra_args += ["-q"]
+        # TODO(sean) add a logger here so you can easily enable/disable proxy instance logging in one place
 
     def _wrap(self, cmd):
         return [
