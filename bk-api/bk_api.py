@@ -5,7 +5,7 @@
 # https://github.com/PyMySQL/mysqlclient-python
 # https://mysqlclient.readthedocs.io/
 
-
+from contextlib import closing
 from genericpath import exists
 import os
 import sys
@@ -69,6 +69,10 @@ FAKE_DEPLOYMENT=os.getenv("FAKE_DEPLOYMENT", "0")=="1"
 
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
+
+
+valid_node_id_pattern = re.compile("[A-Z0-9]{6,16}")
+valid_vsn_pattern = re.compile("[A-Z0-9]{3,8}")
 
 
 def ShowException():
@@ -257,7 +261,7 @@ def post_node_credentials(node_id, private_key, public_key):
 
 
 def valid_node_id(s):
-    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,16}", s) is not None
+    return isinstance(s, str) and valid_node_id_pattern.fullmatch(s) is not None
 
 
 def _register(node_id):
@@ -857,6 +861,12 @@ cd /opt/waggle-edge-stack/kubernetes
     except Exception as e:
         raise Exception(f"register_wes_deployment_event failed: {str(e)}")
 
+    # add vsn as last step of deploy_wes
+    try:
+        add_vsn(node_id)
+    except Exception as e:
+        raise Exception(f"add_vsn failed: {e}")
+
     if this_debug:
         return {
             "waggle_ConfigMap": waggle_ConfigMap,
@@ -869,37 +879,36 @@ cd /opt/waggle-edge-stack/kubernetes
 
     return {"success":True}
 
+def add_vsn(node_id):
+    proxy = get_default_node_subprocess_proxy(node_id)
+
+    output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
+    vsn = output.strip()
+
+    if not valid_vsn_pattern.fullmatch(vsn):
+        raise ValueError(f"invalid vsn {vsn} for node {node_id}")
+
+    node_state = get_node_state(node_id)
+
+    if node_state is None:
+        raise RuntimeError(f"node state does not yet exist for node {node_id}")
+
+    if vsn != node_state.get("vsn"):
+        add_vsn_event(node_id, vsn, lock_tables=True, lock_requested_by="vsn_retrieval")
+
+    return {"success": True}
+
+def get_node_state(node_id):
+    with closing(BeekeeperDB()) as db:
+        return db.get_node_state(node_id)
+
 def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
     payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
                 "field_name": "vsn", "field_value": field_value}
-
     try:
         insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
     except Exception as e:
         raise Exception(f"insert_log returned: {str(e)}")
-    return
-
-# vsn must consist of at most 8 uppercase letters or numbers
-valid_vsn_pattern = re.compile("[A-Z0-9]{,8}$")
-
-def add_vsn(node_id):
-    proxy = get_default_node_subprocess_proxy(node_id)
-
-    try:
-        output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
-    except Exception:
-        raise Exception(f"add_vsn: failed to fetch vsn for node {node_id}")
-
-    vsn = output.strip()
-
-    if not valid_vsn_pattern.match(vsn):
-        raise ValueError(f"add_vsn: invalid vsn {vsn} for node {node_id}")
-
-    try:
-        add_vsn_event(node_id, vsn, lock_tables=True, lock_requested_by="vsn_retrieval")
-    except Exception as e:
-        raise Exception(f"add_vsn_event_failed failed: {str(e)}")
-    return {"success":True}
 
 def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
