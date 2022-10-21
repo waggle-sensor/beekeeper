@@ -543,7 +543,7 @@ def scp(source, node_id, target):
 
     return result_stdout ,result_stderr, exit_code
 
-def get_default_node_subprocess_proxy(node_id):
+def get_cluster_node_subprocess_proxy(node_id):
     return NodeSubprocessProxy(
         node_id=node_id,
         node_key=node_key,
@@ -666,7 +666,7 @@ def kube_secret(name, data):
 def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) determine correct beehive")
 
-    proxy = get_default_node_subprocess_proxy(node_id)
+    proxy = get_cluster_node_subprocess_proxy(node_id)
 
     assign_beehive = ""
     bee_db = None
@@ -880,7 +880,7 @@ cd /opt/waggle-edge-stack/kubernetes
     return {"success":True}
 
 def add_vsn(node_id):
-    proxy = get_default_node_subprocess_proxy(node_id)
+    proxy = get_cluster_node_subprocess_proxy(node_id)
 
     output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
     vsn = output.strip()
