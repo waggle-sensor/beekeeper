@@ -46,6 +46,8 @@ from sshkeygen import SSHKeyGen, run_command_communicate
 
 import linecache
 
+from node_subprocess_proxy import NodeSubprocessProxy
+
 logger = logging.getLogger(__name__)
 
 BASE_KEY_DIR = "/usr/lib/waggle"
@@ -537,7 +539,14 @@ def scp(source, node_id, target):
 
     return result_stdout ,result_stderr, exit_code
 
-
+def get_default_node_subprocess_proxy(node_id):
+    return NodeSubprocessProxy(
+        node_id=node_id,
+        node_key=node_key,
+        proxy_host=BEEKEEPER_SSHD_HOST,
+        proxy_port=2201,
+        proxy_key="/config/admin-key/admin.pem",
+    )
 
 def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
@@ -649,8 +658,11 @@ def kube_secret(name, data):
         raise Exception(f"(kube_secret) {str(e)}")
 
 # force: create new certs even if old ones exist
+# TODO(sean) we should eventually make this an async process as this command can take a while
 def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) determine correct beehive")
+
+    proxy = get_default_node_subprocess_proxy(node_id)
 
     assign_beehive = ""
     bee_db = None
@@ -688,14 +700,11 @@ def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
     logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
+
     try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
-    except Exception as e:
-        raise Exception(f"node_ssh failed: {str(e)}")
-
-    if exit_code != 0:
-        raise Exception(f"ssh failed or kubectl is not yet ready ({result_stderr_str})")
-
+        proxy.check_call(["kubectl", "get", "nodes"])
+    except Exception:
+        raise Exception(f"deploy_wes: kubectl get nodes check failed for {node_id}")
 
     logger.debug("calling create_ssh_upload_cert")
     try:
@@ -861,7 +870,6 @@ cd /opt/waggle-edge-stack/kubernetes
     return {"success":True}
 
 def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
-
     payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
                 "field_name": "vsn", "field_value": field_value}
 
@@ -872,19 +880,17 @@ def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
     return
 
 def add_vsn(node_id):
-    command = "cat /etc/waggle/vsn"
-    try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command, quiet_mode=True)
-        logger.debug(f"(add_vsn) vsn on node: {result_stdout_str}")
-    except Exception as e:
-        raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
-
-    vsn_val_str = result_stdout_str.strip().upper()
-    if vsn_val_str == '':
-        raise Exception(f"vsn is empty: {vsn_val_str}")
+    proxy = get_default_node_subprocess_proxy(node_id)
 
     try:
-        add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn_retrieval")
+        output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
+    except Exception:
+        raise Exception(f"add_vsn: failed to fetch vsn for node {node_id}")
+
+    vsn = output.strip().upper()
+
+    try:
+        add_vsn_event(node_id, vsn, lock_tables=True, lock_requested_by="vsn_retrieval")
     except Exception as e:
         raise Exception(f"add_vsn_event_failed failed: {str(e)}")
     return {"success":True}
