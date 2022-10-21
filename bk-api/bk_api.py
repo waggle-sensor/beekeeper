@@ -706,6 +706,11 @@ def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
 
     try:
+        add_vsn(node_id)
+    except Exception as e:
+        raise Exception(f"add_vsn failed: {e}")
+
+    try:
         proxy.check_call(["kubectl", "get", "nodes"])
     except Exception:
         raise Exception(f"deploy_wes: kubectl get nodes check failed for {node_id}")
@@ -860,12 +865,6 @@ cd /opt/waggle-edge-stack/kubernetes
         register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by="wes_deployment")
     except Exception as e:
         raise Exception(f"register_wes_deployment_event failed: {str(e)}")
-
-    # add vsn as last step of deploy_wes
-    try:
-        add_vsn(node_id)
-    except Exception as e:
-        raise Exception(f"add_vsn failed: {e}")
 
     if this_debug:
         return {
