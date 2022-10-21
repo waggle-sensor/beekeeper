@@ -879,6 +879,9 @@ def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
         raise Exception(f"insert_log returned: {str(e)}")
     return
 
+# vsn must consist of at most 8 uppercase letters or numbers
+valid_vsn_pattern = re.compile("[A-Z0-9]{,8}$")
+
 def add_vsn(node_id):
     proxy = get_default_node_subprocess_proxy(node_id)
 
@@ -887,7 +890,10 @@ def add_vsn(node_id):
     except Exception:
         raise Exception(f"add_vsn: failed to fetch vsn for node {node_id}")
 
-    vsn = output.strip().upper()
+    vsn = output.strip()
+
+    if not valid_vsn_pattern.match(vsn):
+        raise ValueError(f"add_vsn: invalid vsn {vsn} for node {node_id}")
 
     try:
         add_vsn_event(node_id, vsn, lock_tables=True, lock_requested_by="vsn_retrieval")
