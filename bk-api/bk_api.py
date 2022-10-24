@@ -708,6 +708,7 @@ def deploy_wes(node_id, this_debug, force=False):
     try:
         add_vsn(node_id)
     except Exception as e:
+        logger.error("add_vsn failed during deploy_wes for node %s", node_id)
         raise Exception(f"add_vsn failed: {e}")
 
     try:
@@ -1064,24 +1065,23 @@ class Node(MethodView):
             try:
                 set_node_beehive(node_id, assign_beehive)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                logger.exception("assign_beehive failed: %s", e)
+                raise ErrorResponse(f"set_node_beehive failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         if "deploy_wes" in postData:
             try:
                 result = deploy_wes(node_id, this_debug, force=force)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                logger.exception("deploy_wes failed: %s", e)
+                raise ErrorResponse(f"deploy_wes failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
             return jsonify(result)
 
         if "vsn" in postData:
             try:
                 result = add_vsn(node_id)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"add_vsn returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
+                logger.exception("add_vsn failed: %s", e)
+                raise ErrorResponse(f"add_vsn failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         return jsonify({"success": True})
 
