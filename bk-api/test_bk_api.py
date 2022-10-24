@@ -179,7 +179,7 @@ def test_vsn_insert(client):
     result = rv.get_json()
     assert "success" in result
     #Check that the db is updated with the new value
-    gt_value = "TEST-MINIMAL"
+    gt_value = "T123"
     rv = client.get(f'/state/0000000000000001')
     result = rv.get_json()
     print(result)
