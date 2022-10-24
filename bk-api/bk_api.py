@@ -71,8 +71,8 @@ beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
 
 
-valid_node_id_pattern = re.compile("[A-Z0-9]{6,16}")
-valid_vsn_pattern = re.compile("[A-Z0-9]{3,8}")
+valid_node_id_pattern = re.compile(r"[A-Z0-9]{6,16}")
+valid_vsn_pattern = re.compile(r"[A-Z][0-9]{3}")
 
 
 def ShowException():
