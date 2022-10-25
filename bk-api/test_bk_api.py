@@ -217,7 +217,7 @@ def test_vsn_insert_contract(client):
 
 def test_vsn_insert_success(app, client):
     """
-    Tests behavior when add VSN trigger succeeds.
+    Tests add VSN success behavior.
     """
     app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
         (["cat", "/etc/waggle/vsn"], 0, "V001"),
@@ -246,6 +246,9 @@ def test_vsn_insert_success(app, client):
 
 
 def test_add_vsn_proxy_error(app, client):
+    """
+    Tests add vsn behavior when proxy commands fail.
+    """
     app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
         (["cat", "/etc/waggle/vsn"], 1, "V123"),
     ])
@@ -268,6 +271,9 @@ def test_add_vsn_proxy_error(app, client):
 
 
 def test_add_vsn_validation(app, client):
+    """
+    Tests add VSN validation checks.
+    """
     node_id = "0000000000000001"
 
     # assume node has registered
