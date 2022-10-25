@@ -9,7 +9,6 @@ from http import HTTPStatus
 import re
 import os
 from contextlib import closing
-from functools import partial
 
 
 @pytest.fixture
@@ -219,7 +218,7 @@ def test_vsn_insert_success(app, client):
     """
     Tests add VSN success behavior.
     """
-    app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+    app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
         (["cat", "/etc/waggle/vsn"], 0, "V001"),
     ])
 
@@ -249,7 +248,7 @@ def test_add_vsn_proxy_error(app, client):
     """
     Tests add vsn behavior when proxy commands fail.
     """
-    app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+    app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
         (["cat", "/etc/waggle/vsn"], 1, "V123"),
     ])
 
@@ -281,7 +280,7 @@ def test_add_vsn_validation(app, client):
     assert r.status_code == HTTPStatus.OK
 
     for testvalue in ["", "V01", "V 123", "v001", "2x13", "V1234"]:
-        app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+        app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
             (["cat", "/etc/waggle/vsn"], 0, testvalue),
         ])
 
@@ -471,6 +470,11 @@ class MockNodeSubprocessProxy:
     """
     MockNodeSubprocessProxy provides a mock for the check_call and check_output node subprocess proxy methods.
     """
+
+    @classmethod
+    def make_factory(cls, return_values):
+        from functools import partial
+        return partial(MockNodeSubprocessProxy, return_values=return_values)
 
     def __init__(self, node_id, return_values=[]):
         self.node_id = node_id
