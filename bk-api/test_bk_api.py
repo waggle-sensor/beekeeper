@@ -219,7 +219,7 @@ def test_vsn_insert_success(app, client):
     Tests add VSN success behavior.
     """
     app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
-        (["cat", "/etc/waggle/vsn"], 0, "V001"),
+        (["cat", "/etc/waggle/vsn"], 0, "V001\n"),
     ])
 
     node_id = "0000000000000001"
@@ -249,7 +249,7 @@ def test_add_vsn_proxy_error(app, client):
     Tests add vsn behavior when proxy commands fail.
     """
     app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
-        (["cat", "/etc/waggle/vsn"], 1, "V123"),
+        (["cat", "/etc/waggle/vsn"], 1, "V123\n"),
     ])
 
     node_id = "0000000000000001"
