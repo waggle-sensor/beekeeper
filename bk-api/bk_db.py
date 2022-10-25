@@ -1,21 +1,38 @@
 import MySQLdb
-import config
 import dateutil.parser
-import sys
+import os
 import time
 import logging
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
 table_fields = {}
-table_fields_index ={}
+table_fields_index = {}
+
 
 class ObjectNotFound(Exception):
     pass
 
-class BeekeeperDB():
-    def __init__ ( self , retries=60) :
 
+class Config(NamedTuple):
+    mysql_host: str
+    mysql_db: str
+    mysql_user: str
+    mysql_password: str
+
+
+default_config = Config(
+    mysql_host=os.getenv('MYSQL_HOST'),
+    mysql_db=os.getenv('MYSQL_DATABASE'),
+    mysql_user=os.getenv('MYSQL_USER'),
+    mysql_password=os.getenv('MYSQL_PASSWORD'),
+)
+
+
+class BeekeeperDB():
+
+    def __init__ (self, retries=60, config=default_config):
         if not config.mysql_host:
             raise Exception("MYSQL_HOST is not defined")
 
@@ -539,7 +556,6 @@ class BeekeeperDB():
 
         return self.cur.rowcount
 
-
     def dict2mysql(self, obj):
         fields = []
         values = []
@@ -554,11 +570,7 @@ class BeekeeperDB():
 
         return fields_str, values, replacement_str
 
-
-
     def truncate_table(self, table_name):
         stmt = f'TRUNCATE TABLE `{table_name}`'
         logger.debug(f'statement: {stmt}')
         self.cur.execute(stmt)
-
-

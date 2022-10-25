@@ -1,3 +1,4 @@
+import subprocess
 from bk_api import create_app
 from bk_db import BeekeeperDB
 import datetime
@@ -6,13 +7,29 @@ import json
 import io
 from http import HTTPStatus
 import re
+import os
+from contextlib import closing
+from functools import partial
+
 
 @pytest.fixture
 def app():
+    # TODO(sean) This is a hack to prevent accidentally wiping the production tables if someone accidentally. We
+    # should move to a dedicated TestBeekeeper database instead.
+    if os.getenv("TESTING") != "1":
+        raise RuntimeError("Bailing out on running tests as they wipe the database! If you are not running in production and are sure you want to proceed, you must set the env var TESTING=1.")
+
     # TODO(sean) It would be nice to setup a fresh database here, so different unit tests can't affect each other.
     # For example, we could generate some BeekeeperTestRandomID database and init the tables.
     app = create_app()
+    truncate_all_tables()
     yield app
+
+
+def truncate_all_tables():
+    with closing(BeekeeperDB()) as db:
+        for table_name in ["nodes_log", "nodes_history", "beehives"]:
+            db.truncate_table(table_name)
 
 
 @pytest.fixture
@@ -23,6 +40,9 @@ def client(app):
 @pytest.fixture
 def runner(app):
     return app.test_cli_runner()
+
+
+# TODO(sean) setup ability to decouple node ssh from testing. we just want to enforce the contract here.
 
 
 def test_root(client):
@@ -39,9 +59,9 @@ def test_registration(client):
         assert r.status_code == HTTPStatus.OK
         result = r.get_json()
         # NOTE(sean) I'm assuming we're using ed25519 just to keep the expected output slim. If we allow multiple key types, we'll need to update this.
-        assert re.match("-----BEGIN OPENSSH PRIVATE KEY-----(.|\n)+-----END OPENSSH PRIVATE KEY-----", result["private_key"])
-        assert re.match("ssh-ed25519 \S+", result["public_key"])
-        assert re.match("ssh-ed25519-cert-v01@openssh.com \S+", result["certificate"])
+        assert re.match(r"-----BEGIN OPENSSH PRIVATE KEY-----(.|\n)+-----END OPENSSH PRIVATE KEY-----", result["private_key"])
+        assert re.match(r"ssh-ed25519 \S+", result["public_key"])
+        assert re.match(r"ssh-ed25519-cert-v01@openssh.com \S+", result["certificate"])
 
         # Do it twice to make sure the code for the cached version is included
         r = client.post(f'/register?node_id={node_id}')
@@ -52,8 +72,8 @@ def test_registration(client):
 
         r = client.get(f'/credentials/{node_id}')
         result = r.get_json()
-        assert re.match("-----BEGIN OPENSSH PRIVATE KEY-----(.|\n)+-----END OPENSSH PRIVATE KEY-----", result["ssh_key_private"])
-        assert re.match("ssh-ed25519 \S+", result["ssh_key_public"])
+        assert re.match(r"-----BEGIN OPENSSH PRIVATE KEY-----(.|\n)+-----END OPENSSH PRIVATE KEY-----", result["ssh_key_private"])
+        assert re.match(r"ssh-ed25519 \S+", result["ssh_key_public"])
 
 
 def test_registration_missing_node_id(client):
@@ -160,42 +180,119 @@ def get_test_data():
 
     return {'test_time': test_time, 'data': data}
 
+
 def test_log_insert_fail(client):
     rv = client.post('/log', data = "foobar")
     result = rv.get_json()
     assert 'error'  in result
 
-def test_vsn_insert(client):
-    #Check that the initial value is null
-    rv = client.get(f'/state/0000000000000001')
-    result_before_vsn = rv.get_json()
-    assert 'error' not in result_before_vsn
-    assert 'data' in result_before_vsn
-    d_before_vsn = result_before_vsn["data"]["vsn"]
-    assert None == d_before_vsn
-    #Check that we can populate vsn
-    data = {"vsn": True}
-    rv = client.post('/node/0000000000000001', data = json.dumps(data))
-    result = rv.get_json()
-    assert "success" in result
-    #Check that the db is updated with the new value
-    gt_value = "T123"
-    rv = client.get(f'/state/0000000000000001')
-    result = rv.get_json()
-    print(result)
-    assert 'error' not in result
-    assert 'data' in result
 
-    d_after_vsn = result["data"]["vsn"]
-    assert d_before_vsn != d_after_vsn
-    assert d_after_vsn == gt_value
+def test_vsn_insert_contract(client):
+    """
+    Tests the underlying SSH communication contract with a node during add VSN trigger.
+
+    NOTE The expected VSN comes from docker-compose WAGGLE_NODE_VSN environment variable.
+    """
+    node_id = "0000000000000001"
+
+    # assume node has registered
+    r = client.post(f"/register?node_id={node_id}")
+    assert r.status_code == HTTPStatus.OK
+
+    # check initial value is null
+    r = client.get(f'/state/{node_id}')
+    resp = must_get_valid_json_response(r)
+    assert resp["data"]["vsn"] == None
+
+    # call add vsn trigger endpoint
+    r = client.post(f'/node/{node_id}', data=json.dumps({"vsn": True}))
+    assert r.status_code == HTTPStatus.OK
+    assert r.get_json() == {"success": True}
+
+    # check that response matches expected vsn
+    r = client.get(f'/state/{node_id}')
+    resp = must_get_valid_json_response(r)
+    assert resp["data"]["vsn"] == "V001"
+
+
+def test_vsn_insert_success(app, client):
+    """
+    Tests behavior when add VSN trigger succeeds.
+    """
+    app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+        (["cat", "/etc/waggle/vsn"], 0, "V001"),
+    ])
+
+    node_id = "0000000000000001"
+
+    # assume node has registered
+    r = client.post(f"/register?node_id={node_id}")
+    assert r.status_code == HTTPStatus.OK
+
+    # test initial value is null
+    r = client.get(f'/state/{node_id}')
+    assert r.status_code == HTTPStatus.OK
+    resp = must_get_valid_json_response(r)
+    assert resp["data"]["vsn"] == None
+
+    # test insert vsn endpoint
+    r = client.post(f'/node/{node_id}', data=json.dumps({"vsn": True}))
+    assert r.get_json() == {"success": True}
+
+    # check that response matches expected vsn
+    r = client.get(f'/state/{node_id}')
+    resp = must_get_valid_json_response(r)
+    assert resp["data"]["vsn"] == "V001"
+
+
+def test_add_vsn_proxy_error(app, client):
+    app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+        (["cat", "/etc/waggle/vsn"], 1, "V123"),
+    ])
+
+    node_id = "0000000000000001"
+
+    # assume node has registered
+    r = client.post(f"/register?node_id={node_id}")
+    assert r.status_code == HTTPStatus.OK
+
+    # test insert vsn endpoint
+    data = {"vsn": True}
+    r = client.post(f'/node/{node_id}', data=json.dumps(data))
+    assert r.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+
+    # ensure state has not changed on failure
+    r = client.get(f'/state/{node_id}')
+    resp = must_get_valid_json_response(r)
+    assert resp["data"]["vsn"] is None
+
+
+def test_add_vsn_validation(app, client):
+    node_id = "0000000000000001"
+
+    # assume node has registered
+    r = client.post(f"/register?node_id={node_id}")
+    assert r.status_code == HTTPStatus.OK
+
+    for testvalue in ["", "V01", "V 123", "v001", "2x13", "V1234"]:
+        app.node_subprocess_proxy_factory = partial(MockNodeSubprocessProxy, return_values=[
+            (["cat", "/etc/waggle/vsn"], 0, testvalue),
+        ])
+
+        # trigger add vsn
+        data = {"vsn": True}
+        r = client.post(f'/node/{node_id}', data=json.dumps(data))
+        assert r.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+
+        # ensure state has not changed on failure
+        r = client.get(f'/state/{node_id}')
+        resp = must_get_valid_json_response(r)
+        assert resp["data"]["vsn"] is None
+
 
 # TODO test full replay without timestamp
 def test_log_insert(client):
     # TODO(sean) Can we use a public endpoint which exercises this rather than test the internals?
-    bee_db = BeekeeperDB()
-    bee_db.truncate_table("nodes_log")
-    bee_db.truncate_table("nodes_history")
 
     test_data = get_test_data()
     data = test_data['data']
@@ -235,9 +332,6 @@ def test_log_insert(client):
 
 def test_list_recent_state(client):
     # TODO(sean) Can we use a public endpoint which exercises this rather than test the internals?
-    bee_db = BeekeeperDB()
-    bee_db.truncate_table("nodes_log")
-    bee_db.truncate_table("nodes_history")
 
     test_data = get_test_data()
     data = test_data['data']
@@ -343,6 +437,15 @@ def test_error(client):
     assert b'error' in rv.data
 
 
+
+def must_get_valid_json_response(r):
+    assert r.status_code == HTTPStatus.OK
+    resp = r.get_json()
+    assert "error" not in resp
+    assert "data" in resp
+    return resp
+
+
 def rand_node_id():
     return rand_string(6, 16, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
@@ -356,3 +459,22 @@ def rand_string(min_length, max_length, characters):
     from random import choice
     length = randint(min_length, max_length)
     return "".join(choice(characters) for _ in range(length))
+
+
+class MockNodeSubprocessProxy:
+    """
+    MockNodeSubprocessProxy provides a mock for the check_call and check_output node subprocess proxy methods.
+    """
+
+    def __init__(self, node_id, return_values=[]):
+        self.node_id = node_id
+        self.return_values = {tuple(cmd): (returncode, output) for cmd, returncode, output in return_values}
+
+    def check_output(self, cmd, *args, **kwargs):
+        returncode, output = self.return_values[tuple(cmd)]
+        if returncode != 0:
+            raise subprocess.CalledProcessError(returncode=returncode, cmd=cmd, output=output)
+        return output
+
+    def check_call(self, cmd, *args, **kwargs):
+        self.check_output(cmd, *args, **kwargs)

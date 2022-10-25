@@ -24,7 +24,6 @@ from flask import abort, jsonify
 
 from http import HTTPStatus
 
-import config
 import datetime
 import time
 import json
@@ -541,16 +540,7 @@ def scp(source, node_id, target):
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
 
-    return result_stdout ,result_stderr, exit_code
-
-def get_cluster_node_subprocess_proxy(node_id):
-    return NodeSubprocessProxy(
-        node_id=node_id,
-        node_key=node_key,
-        proxy_host=BEEKEEPER_SSHD_HOST,
-        proxy_port=2201,
-        proxy_key="/config/admin-key/admin.pem",
-    )
+    return result_stdout, result_stderr, exit_code
 
 def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
@@ -666,7 +656,7 @@ def kube_secret(name, data):
 def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) determine correct beehive")
 
-    proxy = get_cluster_node_subprocess_proxy(node_id)
+    proxy = get_node_subprocess_proxy(node_id)
 
     assign_beehive = ""
     bee_db = None
@@ -880,7 +870,7 @@ cd /opt/waggle-edge-stack/kubernetes
     return {"success":True}
 
 def add_vsn(node_id):
-    proxy = get_cluster_node_subprocess_proxy(node_id)
+    proxy = get_node_subprocess_proxy(node_id)
 
     output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
     vsn = output.strip()
@@ -1366,7 +1356,24 @@ class Registration(MethodView):
         return registration_result
 
 
-def create_app(test_config=None):
+def cluster_node_subprocess_proxy_factory(node_id):
+    """
+    cluster_node_subprocess_proxy_factory returns a node subprocess proxy for a node using the cluster's ssh config.
+    """
+    return NodeSubprocessProxy(
+        node_id=node_id,
+        node_key=node_key,
+        proxy_host=BEEKEEPER_SSHD_HOST,
+        proxy_port=2201,
+        proxy_key="/config/admin-key/admin.pem",
+    )
+
+
+def get_node_subprocess_proxy(node_id):
+    return current_app.node_subprocess_proxy_factory(node_id)
+
+
+def create_app(test_config=None, node_subprocess_proxy_factory=cluster_node_subprocess_proxy_factory):
     app = Flask(__name__, instance_relative_config=True)
 
     logging.basicConfig(level=logging.INFO,
@@ -1375,6 +1382,8 @@ def create_app(test_config=None):
     CORS(app)
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
+    app.node_subprocess_proxy_factory = node_subprocess_proxy_factory
+
     #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
     app.add_url_rule('/', view_func=Root.as_view('root'))
@@ -1401,26 +1410,24 @@ def create_app(test_config=None):
         return response
 
    # All your initialization code
-    bee_db = BeekeeperDB()
+    with closing(BeekeeperDB()) as bee_db:
+        for table_name in ['nodes_log', 'nodes_history', 'beehives']:
 
-    for table_name in ['nodes_log', 'nodes_history', 'beehives']:
-
-        stmt = f'SHOW COLUMNS FROM `{table_name}`'
-        logger.debug(f'statement: {stmt}')
-        bee_db.cur.execute(stmt)
-        rows = bee_db.cur.fetchall()
+            stmt = f'SHOW COLUMNS FROM `{table_name}`'
+            logger.debug(f'statement: {stmt}')
+            bee_db.cur.execute(stmt)
+            rows = bee_db.cur.fetchall()
 
 
-        table_fields[table_name] = []
-        table_fields_index[table_name] ={}
-        for row in rows:
-            #print(row, flush=True)
-            table_fields[table_name].append(row[0])
+            table_fields[table_name] = []
+            table_fields_index[table_name] ={}
+            for row in rows:
+                #print(row, flush=True)
+                table_fields[table_name].append(row[0])
 
-        for f in range(len(table_fields[table_name])):
-            table_fields_index[table_name][table_fields[table_name][f]] = f
+            for f in range(len(table_fields[table_name])):
+                table_fields_index[table_name][table_fields[table_name][f]] = f
 
-    bee_db.close()
     logger.debug(table_fields)
     logger.debug(table_fields_index)
 

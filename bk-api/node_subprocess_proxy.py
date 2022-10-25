@@ -29,9 +29,6 @@ class NodeSubprocessProxy:
             *cmd,
         ]
 
-    def run(self, cmd, *args, **kwargs):
-        return subprocess.run(self._wrap(cmd), *args, **kwargs)
-
     def check_call(self, cmd, *args, **kwargs):
         return subprocess.check_call(self._wrap(cmd), *args, **kwargs)
 
