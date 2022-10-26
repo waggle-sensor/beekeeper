@@ -1,6 +1,5 @@
 import subprocess
-from bk_api import create_app
-from bk_db import BeekeeperDB
+from bk_api import create_app, get_db
 import datetime
 import pytest
 import json
@@ -21,14 +20,18 @@ def app():
     # TODO(sean) It would be nice to setup a fresh database here, so different unit tests can't affect each other.
     # For example, we could generate some BeekeeperTestRandomID database and init the tables.
     app = create_app()
-    truncate_all_tables()
+
+    with app.app_context():
+        wipe_db()
+
     yield app
 
 
-def truncate_all_tables():
-    with closing(BeekeeperDB()) as db:
-        for table_name in ["nodes_log", "nodes_history", "beehives"]:
-            db.truncate_table(table_name)
+def wipe_db():
+    with closing(get_db()) as db:
+        db.truncate_table("nodes_log")
+        db.truncate_table("nodes_history")
+        db.truncate_table("beehives")
 
 
 @pytest.fixture

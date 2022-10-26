@@ -1,5 +1,3 @@
-
-
 CREATE DATABASE IF NOT EXISTS Beekeeper;
 
 /* log of update operations */

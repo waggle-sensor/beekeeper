@@ -3,7 +3,6 @@ import dateutil.parser
 import os
 import time
 import logging
-from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
@@ -11,38 +10,21 @@ table_fields = {}
 table_fields_index = {}
 
 
-class ObjectNotFound(Exception):
-    pass
+class BeekeeperDB:
 
+    # TODO(sean) make this a context manager to ensure cleanup after operations
 
-class Config(NamedTuple):
-    mysql_host: str
-    mysql_db: str
-    mysql_user: str
-    mysql_password: str
-
-
-default_config = Config(
-    mysql_host=os.getenv('MYSQL_HOST'),
-    mysql_db=os.getenv('MYSQL_DATABASE'),
-    mysql_user=os.getenv('MYSQL_USER'),
-    mysql_password=os.getenv('MYSQL_PASSWORD'),
-)
-
-
-class BeekeeperDB():
-
-    def __init__ (self, retries=60, config=default_config):
-        if not config.mysql_host:
+    def __init__(self, host, database, user, password, retries=60):
+        if not host:
             raise Exception("MYSQL_HOST is not defined")
 
-        if not config.mysql_db:
+        if not database:
             raise Exception("MYSQL_DATABASE is not defined")
 
-        if not config.mysql_user:
+        if not user:
             raise Exception("MYSQL_USER is not defined")
 
-        if not config.mysql_password:
+        if not password:
             raise Exception("MYSQL_PASSWORD is not defined")
 
         # NOTE(sean) I don't think we want the retry logic to live inside this function but instead managed by the caller.
@@ -55,8 +37,7 @@ class BeekeeperDB():
         count = 0
         while True:
             try:
-                self.db=MySQLdb.connect(host=config.mysql_host,user=config.mysql_user,
-                  passwd=config.mysql_password,db=config.mysql_db)
+                self.db = MySQLdb.connect(host=host, user=user, passwd=password, db=database)
             except Exception as e: # pragma: no cover
                 if count > retries:
                     raise
