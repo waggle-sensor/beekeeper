@@ -12,7 +12,7 @@ from contextlib import closing
 
 @pytest.fixture
 def app():
-    # TODO(sean) This is a hack to prevent accidentally wiping the production tables if someone accidentally. We
+    # TODO(sean) This is a hack to prevent accidentally wiping the production tables if someone accidentally runs the tests. We
     # should move to a dedicated TestBeekeeper database instead.
     if os.getenv("TESTING") != "1":
         raise RuntimeError("Bailing out on running tests as they wipe the database! If you are not running in production and are sure you want to proceed, you must set the env var TESTING=1.")
