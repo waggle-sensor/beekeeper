@@ -32,6 +32,7 @@ def wipe_db():
         db.truncate_table("nodes_log")
         db.truncate_table("nodes_history")
         db.truncate_table("beehives")
+        # TODO(sean) truncate all tables and stop depending on on data outside of the unit tests
 
 
 @pytest.fixture
