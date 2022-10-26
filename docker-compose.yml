@@ -41,7 +41,7 @@ services:
     volumes:
       - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
   node1:
-    image: waggle/wes-minimal:0.3.0
+    image: waggle/node-platforms:0.3.0
     restart: always
     volumes:
       - ./beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro

@@ -542,6 +542,8 @@ def scp(source, node_id, target):
 
     return result_stdout, result_stderr, exit_code
 
+# TODO(sean) migrate this and other dependent functions to use node subprocess proxy. this will
+# allow more control during unit testing.
 def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
     ssh_cmd =  ["ssh",
