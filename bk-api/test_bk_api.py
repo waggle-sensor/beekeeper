@@ -216,7 +216,7 @@ def test_vsn_insert_contract(client):
 
 def test_vsn_insert_success(app, client):
     """
-    Tests add VSN success behavior.
+    Tests add vsn trigger success behavior.
     """
     app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
         (["cat", "/etc/waggle/vsn"], 0, "V001\n"),
@@ -246,7 +246,7 @@ def test_vsn_insert_success(app, client):
 
 def test_add_vsn_proxy_error(app, client):
     """
-    Tests add vsn behavior when proxy commands fail.
+    Tests add vsn trigger behavior when proxy commands fail.
     """
     app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
         (["cat", "/etc/waggle/vsn"], 1, "V123\n"),
@@ -271,7 +271,7 @@ def test_add_vsn_proxy_error(app, client):
 
 def test_add_vsn_validation(app, client):
     """
-    Tests add VSN validation checks.
+    Tests add vsn trigger validation checks.
     """
     node_id = "0000000000000001"
 
@@ -279,7 +279,7 @@ def test_add_vsn_validation(app, client):
     r = client.post(f"/register?node_id={node_id}")
     assert r.status_code == HTTPStatus.OK
 
-    for testvalue in ["", "V01", "V 123", "v001", "2x13", "V1234"]:
+    for testvalue in ["", "\n", "V01\n", "V 123\n", "v001\n", "2x13\n", "V1234\n", "BAD-CHARS!\n", "V001\nV002\n"]:
         app.node_subprocess_proxy_factory = MockNodeSubprocessProxy.make_factory([
             (["cat", "/etc/waggle/vsn"], 0, testvalue),
         ])
