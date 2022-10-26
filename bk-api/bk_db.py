@@ -17,16 +17,16 @@ class BeekeeperDB:
 
     def __init__(self, host, database, user, password, retries=60):
         if not host:
-            raise Exception("MYSQL_HOST is not defined")
+            raise Exception("host is not defined")
 
         if not database:
-            raise Exception("MYSQL_DATABASE is not defined")
+            raise Exception("database is not defined")
 
         if not user:
-            raise Exception("MYSQL_USER is not defined")
+            raise Exception("user is not defined")
 
         if not password:
-            raise Exception("MYSQL_PASSWORD is not defined")
+            raise Exception("password is not defined")
 
         # NOTE(sean) I don't think we want the retry logic to live inside this function but instead managed by the caller.
         #
