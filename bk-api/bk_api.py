@@ -5,7 +5,7 @@
 # https://github.com/PyMySQL/mysqlclient-python
 # https://mysqlclient.readthedocs.io/
 
-
+from contextlib import closing
 from genericpath import exists
 import os
 import sys
@@ -24,14 +24,12 @@ from flask import abort, jsonify
 
 from http import HTTPStatus
 
-import config
 import datetime
 import time
 import json
 import base64
 import yaml
 
-import bk_db
 from  bk_db import BeekeeperDB, table_fields , table_fields_index
 
 #import flask
@@ -45,6 +43,8 @@ import re
 from sshkeygen import SSHKeyGen, run_command_communicate
 
 import linecache
+
+from node_subprocess_proxy import NodeSubprocessProxy
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,10 @@ FAKE_DEPLOYMENT=os.getenv("FAKE_DEPLOYMENT", "0")=="1"
 
 beehives_root = '/beehives'
 node_key = "/config/nodes/nodes.pem"
+
+
+valid_node_id_pattern = re.compile(r"[A-Z0-9]{6,16}")
+valid_vsn_pattern = re.compile(r"[A-Z][A-Z0-9]{3}")
 
 
 def ShowException():
@@ -115,13 +119,13 @@ def set_node_beehive(node_id, beehive_id):
     node_state = None
 
     try:
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         node_state = bee_db.get_node_state(node_id)
     #except bk_db.ObjectNotFound:
     #    node_state = None
         # TODO(sean) we may want to make BeekeeperDB a contextmanager so we can just start using:
         #
-        # with BeekeeperDB() as bee_db:
+        # with get_db() as bee_db:
         #     ... code which uses database ...
         #
         # This could help ensure that we always either commit or rollback changes to the database.
@@ -162,7 +166,7 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
 
     ### collect info about registered nodes to prevent multiple registrations
     try:
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         node_list = bee_db.list_latest_state()
         bee_db.close()
     except Exception as e:
@@ -208,14 +212,9 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
     return
 
 
-
-
-
 def get_node_keypair(node_id):
-
-
     try:
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         return_obj = bee_db.get_node_keypair(node_id)
         bee_db.close()
     except Exception as e:
@@ -237,11 +236,9 @@ def get_node_keypair(node_id):
     return creds
 
 
-
 def post_node_credentials(node_id, private_key, public_key):
-
     #ssh_key_private", "ssh_key_public
-    bee_db = BeekeeperDB()
+    bee_db = get_db()
     post_creds = {"ssh_key_private": private_key, "ssh_key_public": public_key}
 
     try:
@@ -251,11 +248,9 @@ def post_node_credentials(node_id, private_key, public_key):
 
     bee_db.close()
 
-    return
-
 
 def valid_node_id(s):
-    return isinstance(s, str) and re.fullmatch(r"[A-Z0-9]{6,16}", s) is not None
+    return isinstance(s, str) and valid_node_id_pattern.fullmatch(s) is not None
 
 
 def _register(node_id):
@@ -324,11 +319,6 @@ def _register(node_id):
 
 
 def create_beehive_files(beehive_obj):
-
-
-    #if not os.path.exists(beehives_root):
-    #    os.makedirs(beehives_root)
-
     beehive_id =  beehive_obj["id"]
     beehive_dir = os.path.join(beehives_root, beehive_id )
     beehive_dir_ssh = os.path.join(beehive_dir , "ssh")
@@ -417,7 +407,7 @@ def insert_log(postData, lock_tables=True, force=False, lock_requested_by="", re
 
     bee_db = None
     try:
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
     except Exception as e:
         raise Exception(f"Could not create BeekeeperDB: {e}" )
 
@@ -472,7 +462,7 @@ class Replay(MethodView):
     def get(self):
         bee_db = None
         try:
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
         except Exception as e:
             raise Exception(f"Could not create BeekeeperDB: {e}" )
 
@@ -490,7 +480,7 @@ class Replay(MethodView):
 class ListStates(MethodView):
     def get(self):
         try:
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             node_state = bee_db.list_latest_state()
             bee_db.close()
         except Exception as e:
@@ -506,7 +496,7 @@ class State(MethodView):
     def get(self, node_id):
         try:
 
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             node_state = bee_db.get_node_state(node_id)
             bee_db.close()
         except Exception as e:
@@ -535,10 +525,10 @@ def scp(source, node_id, target):
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
 
-    return result_stdout ,result_stderr, exit_code
+    return result_stdout, result_stderr, exit_code
 
-
-
+# TODO(sean) migrate this and other dependent functions to use node subprocess proxy. this will
+# allow more control during unit testing.
 def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
     ssh_cmd =  ["ssh",
@@ -649,13 +639,16 @@ def kube_secret(name, data):
         raise Exception(f"(kube_secret) {str(e)}")
 
 # force: create new certs even if old ones exist
+# TODO(sean) we should eventually make this an async process as this command can take a while
 def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) determine correct beehive")
+
+    proxy = get_node_subprocess_proxy(node_id)
 
     assign_beehive = ""
     bee_db = None
     try:
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         node_state = bee_db.get_node_state(node_id)
     except Exception as e:
         raise Exception(f"finding beehive for node failed: {str(e)}")
@@ -688,14 +681,17 @@ def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) using beehive %s", beehive_id)
 
     logger.debug("(deploy_wes) checking if kubernetes is running on node %s", node_id)
+
     try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl get nodes")
+        add_vsn(node_id)
     except Exception as e:
-        raise Exception(f"node_ssh failed: {str(e)}")
+        logger.error("add_vsn failed during deploy_wes for node %s", node_id)
+        raise Exception(f"add_vsn failed: {e}")
 
-    if exit_code != 0:
-        raise Exception(f"ssh failed or kubectl is not yet ready ({result_stderr_str})")
-
+    try:
+        proxy.check_call(["kubectl", "get", "nodes"])
+    except Exception:
+        raise Exception(f"deploy_wes: kubectl get nodes check failed for {node_id}")
 
     logger.debug("calling create_ssh_upload_cert")
     try:
@@ -860,34 +856,36 @@ cd /opt/waggle-edge-stack/kubernetes
 
     return {"success":True}
 
-def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
+def add_vsn(node_id):
+    proxy = get_node_subprocess_proxy(node_id)
 
+    output = proxy.check_output(["cat", "/etc/waggle/vsn"], text=True)
+    vsn = output.strip()
+
+    if not valid_vsn_pattern.fullmatch(vsn):
+        raise ValueError(f"invalid vsn {vsn} for node {node_id}")
+
+    node_state = get_node_state(node_id)
+
+    if node_state is None:
+        raise RuntimeError(f"node state does not yet exist for node {node_id}")
+
+    if vsn != node_state.get("vsn"):
+        add_vsn_event(node_id, vsn, lock_tables=True, lock_requested_by="vsn_retrieval")
+
+    return {"success": True}
+
+def get_node_state(node_id):
+    with closing(get_db()) as db:
+        return db.get_node_state(node_id)
+
+def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
     payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
                 "field_name": "vsn", "field_value": field_value}
-
     try:
         insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
     except Exception as e:
         raise Exception(f"insert_log returned: {str(e)}")
-    return
-
-def add_vsn(node_id):
-    command = "cat /etc/waggle/vsn"
-    try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, command, quiet_mode=True)
-        logger.debug(f"(add_vsn) vsn on node: {result_stdout_str}")
-    except Exception as e:
-        raise Exception(f"node_ssh failed: {str(e)} with command: {command}")
-
-    vsn_val_str = result_stdout_str.strip().upper()
-    if vsn_val_str == '':
-        raise Exception(f"vsn is empty: {vsn_val_str}")
-
-    try:
-        add_vsn_event(node_id,vsn_val_str,lock_tables=True, lock_requested_by="vsn_retrieval")
-    except Exception as e:
-        raise Exception(f"add_vsn_event_failed failed: {str(e)}")
-    return {"success":True}
 
 def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
@@ -1044,24 +1042,23 @@ class Node(MethodView):
             try:
                 set_node_beehive(node_id, assign_beehive)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"set_node_beehive returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                logger.exception("assign_beehive failed: %s", e)
+                raise ErrorResponse(f"set_node_beehive failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         if "deploy_wes" in postData:
             try:
                 result = deploy_wes(node_id, this_debug, force=force)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"deploy_wes returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                logger.exception("deploy_wes failed: %s", e)
+                raise ErrorResponse(f"deploy_wes failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
             return jsonify(result)
 
         if "vsn" in postData:
             try:
                 result = add_vsn(node_id)
             except Exception as e:
-                logger.error(e)
-                raise ErrorResponse(f"add_vsn returned: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
+                logger.exception("add_vsn failed: %s", e)
+                raise ErrorResponse(f"add_vsn failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
 
         return jsonify({"success": True})
 
@@ -1073,7 +1070,7 @@ class BeehivesList(MethodView):
         view = request.args.get('view', "")
 
         try:
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             fields = ["id"]
             if view == "full":
                 fields=None
@@ -1109,7 +1106,7 @@ class BeehivesList(MethodView):
         key_type = postData["key-type"]
         #key_type_args = postData.get("key-type-args", "")
 
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
 
         #TODO check if beehive already exists
 
@@ -1138,7 +1135,7 @@ class Beehives(MethodView):
     def get(self, beehive_id):
 
 
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         obj = bee_db.get_beehive(beehive_id)
         if not obj:
             raise Exception(f"Beehive {beehive_id} not found" )
@@ -1159,7 +1156,7 @@ class Beehives(MethodView):
         data={}
         try:
 
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             obj = bee_db.get_beehive(beehive_id)
             if not obj:
                 raise Exception(f"Beehive {beehive_id} not found" )
@@ -1204,7 +1201,7 @@ class Beehives(MethodView):
 
     def delete(self, beehive_id):
 
-        bee_db = BeekeeperDB()
+        bee_db = get_db()
         result = bee_db.delete_object("beehives", "id", beehive_id )
         bee_db.close()
         return jsonify({"deleted": result})
@@ -1216,7 +1213,7 @@ class Credentials(MethodView):
 
         try:
 
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             results = bee_db.get_node_keypair(node_id)
             bee_db.close()
         except Exception as e:
@@ -1258,7 +1255,7 @@ class Credentials(MethodView):
 
         try:
 
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             results = bee_db.set_node_keypair(node_id, postData)
             bee_db.close()
         except Exception as e:
@@ -1273,7 +1270,7 @@ class Credentials(MethodView):
 
         try:
 
-            bee_db = BeekeeperDB()
+            bee_db = get_db()
             result_count = bee_db.delete_object( "node_credentials", "id", node_id)
             bee_db.close()
         except Exception as e:
@@ -1309,7 +1306,7 @@ class Registration(MethodView):
 
         if beehive_id:
             try:
-                bee_db = BeekeeperDB()
+                bee_db = get_db()
                 beehive_obj = bee_db.get_beehive(beehive_id)
                 bee_db.close()
             except Exception as e:
@@ -1346,7 +1343,33 @@ class Registration(MethodView):
         return registration_result
 
 
-def create_app(test_config=None):
+def cluster_node_subprocess_proxy_factory(node_id):
+    """
+    cluster_node_subprocess_proxy_factory returns a node subprocess proxy for a node using the cluster's ssh config.
+    """
+    return NodeSubprocessProxy(
+        node_id=node_id,
+        node_key=node_key,
+        proxy_host=BEEKEEPER_SSHD_HOST,
+        proxy_port=2201,
+        proxy_key="/config/admin-key/admin.pem",
+    )
+
+
+def get_db():
+    return BeekeeperDB(
+        host=current_app.config["MYSQL_HOST"],
+        database=current_app.config["MYSQL_DATABASE"],
+        user=current_app.config["MYSQL_USER"],
+        password=current_app.config["MYSQL_PASSWORD"],
+    )
+
+
+def get_node_subprocess_proxy(node_id):
+    return current_app.node_subprocess_proxy_factory(node_id)
+
+
+def create_app(config={}, node_subprocess_proxy_factory=cluster_node_subprocess_proxy_factory):
     app = Flask(__name__, instance_relative_config=True)
 
     logging.basicConfig(level=logging.INFO,
@@ -1355,6 +1378,15 @@ def create_app(test_config=None):
     CORS(app)
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
+
+    # database settings
+    app.config["MYSQL_HOST"] = config.get("MYSQL_HOST") or os.getenv("MYSQL_HOST")
+    app.config["MYSQL_DATABASE"] = config.get("MYSQL_DATABASE") or os.getenv("MYSQL_DATABASE")
+    app.config["MYSQL_USER"] = config.get("MYSQL_USER") or os.getenv("MYSQL_USER")
+    app.config["MYSQL_PASSWORD"] = config.get("MYSQL_PASSWORD") or os.getenv("MYSQL_PASSWORD")
+
+    app.node_subprocess_proxy_factory = node_subprocess_proxy_factory
+
     #app.wsgi_app = ecr_middleware(app.wsgi_app)
 
     app.add_url_rule('/', view_func=Root.as_view('root'))
@@ -1380,33 +1412,34 @@ def create_app(test_config=None):
         response.status_code = error.status_code
         return response
 
-   # All your initialization code
-    bee_db = BeekeeperDB()
-
-    for table_name in ['nodes_log', 'nodes_history', 'beehives']:
-
-        stmt = f'SHOW COLUMNS FROM `{table_name}`'
-        logger.debug(f'statement: {stmt}')
-        bee_db.cur.execute(stmt)
-        rows = bee_db.cur.fetchall()
-
-
-        table_fields[table_name] = []
-        table_fields_index[table_name] ={}
-        for row in rows:
-            #print(row, flush=True)
-            table_fields[table_name].append(row[0])
-
-        for f in range(len(table_fields[table_name])):
-            table_fields_index[table_name][table_fields[table_name][f]] = f
-
-    bee_db.close()
-    logger.debug(table_fields)
-    logger.debug(table_fields_index)
+    with app.app_context():
+        init_db()
 
     initialize_test_nodes()
 
     return app
+
+
+def init_db():
+    with closing(get_db()) as bee_db:
+        for table_name in ['nodes_log', 'nodes_history', 'beehives']:
+
+            stmt = f'SHOW COLUMNS FROM `{table_name}`'
+            logger.debug(f'statement: {stmt}')
+            bee_db.cur.execute(stmt)
+            rows = bee_db.cur.fetchall()
+
+            table_fields[table_name] = []
+            table_fields_index[table_name] ={}
+            for row in rows:
+                #print(row, flush=True)
+                table_fields[table_name].append(row[0])
+
+            for f in range(len(table_fields[table_name])):
+                table_fields_index[table_name][table_fields[table_name][f]] = f
+
+    logger.debug(table_fields)
+    logger.debug(table_fields_index)
 
 
 if __name__ == "__main__":

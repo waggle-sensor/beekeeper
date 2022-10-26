@@ -36,11 +36,13 @@ services:
       - "127.0.0.1:5000:5000" # for testing purposes
   db:
     image: mysql:8.0.29
+    restart: always
     env_file: mysql.env
     volumes:
       - ./schema.sql:/docker-entrypoint-initdb.d/init.sql
   node1:
-    image: waggle/wes-minimal
+    image: waggle/node-platforms:0.3.0
+    restart: always
     volumes:
       - ./beekeeper-keys/registration_certs/untilforever/registration:/etc/waggle/sage_registration_readonly:ro
       - ./beekeeper-keys/registration_certs/untilforever/registration-cert.pub:/etc/waggle/sage_registration-cert.pub_readonly:ro
@@ -48,3 +50,6 @@ services:
       - ./beekeeper-keys/bk-ca/beekeeper_ca_key.pub:/etc/waggle/beekeeper_ca_key.pub:ro
       # so beekeeper can ssh into it:
       - ./beekeeper-keys/node-ssh-key/nodes.pem.pub:/root/.ssh/authorized_keys:ro
+    environment:
+      - WAGGLE_NODE_ID=0000000000000001
+      - WAGGLE_NODE_VSN=V001

@@ -1,32 +1,32 @@
 import MySQLdb
-import config
 import dateutil.parser
-import sys
+import os
 import time
 import logging
 
 logger = logging.getLogger(__name__)
 
+# TODO(sean) this should probably not be a global... we should look at how to either not need this at all or move it into the DB object.
 table_fields = {}
-table_fields_index ={}
+table_fields_index = {}
 
-class ObjectNotFound(Exception):
-    pass
 
-class BeekeeperDB():
-    def __init__ ( self , retries=60) :
+class BeekeeperDB:
 
-        if not config.mysql_host:
-            raise Exception("MYSQL_HOST is not defined")
+    # TODO(sean) make this a context manager to ensure cleanup after operations
 
-        if not config.mysql_db:
-            raise Exception("MYSQL_DATABASE is not defined")
+    def __init__(self, host, database, user, password, retries=60):
+        if not host:
+            raise Exception("host is not defined")
 
-        if not config.mysql_user:
-            raise Exception("MYSQL_USER is not defined")
+        if not database:
+            raise Exception("database is not defined")
 
-        if not config.mysql_password:
-            raise Exception("MYSQL_PASSWORD is not defined")
+        if not user:
+            raise Exception("user is not defined")
+
+        if not password:
+            raise Exception("password is not defined")
 
         # NOTE(sean) I don't think we want the retry logic to live inside this function but instead managed by the caller.
         #
@@ -38,8 +38,7 @@ class BeekeeperDB():
         count = 0
         while True:
             try:
-                self.db=MySQLdb.connect(host=config.mysql_host,user=config.mysql_user,
-                  passwd=config.mysql_password,db=config.mysql_db)
+                self.db = MySQLdb.connect(host=host, user=user, passwd=password, db=database)
             except Exception as e: # pragma: no cover
                 if count > retries:
                     raise
@@ -539,7 +538,6 @@ class BeekeeperDB():
 
         return self.cur.rowcount
 
-
     def dict2mysql(self, obj):
         fields = []
         values = []
@@ -554,11 +552,7 @@ class BeekeeperDB():
 
         return fields_str, values, replacement_str
 
-
-
     def truncate_table(self, table_name):
         stmt = f'TRUNCATE TABLE `{table_name}`'
         logger.debug(f'statement: {stmt}')
         self.cur.execute(stmt)
-
-
