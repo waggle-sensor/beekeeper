@@ -6,6 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# TODO(sean) this should probably not be a global... we should look at how to either not need this at all or move it into the DB object.
 table_fields = {}
 table_fields_index = {}
 
