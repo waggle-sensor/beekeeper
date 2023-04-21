@@ -92,12 +92,11 @@ spec:
         - image: waggle/beekeeper-sshd:latest
           name: beekeeper-sshd
           resources:
-            limits:
+            requests:
               cpu: "8000m"
               memory: "12Gi"
-            requests:
-              cpu: "2000m"
-              memory: "4Gi"
+            limits:
+              memory: "12Gi"
           volumeMounts:
             - name: ca-public
               subPath: beekeeper_ca_key.pub

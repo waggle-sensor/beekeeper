@@ -56,8 +56,10 @@ spec:
         - name: deploy-manager
           image: waggle/beekeeper-deploy-manager
           resources:
+            requests:
+              cpu: "2000m"
+              memory: "1Gi"              
             limits:
-              cpu: 2
               memory: "1Gi"
           env:
             - name: BEEKEEPER_URL
@@ -93,8 +95,10 @@ spec:
             - secretRef:
                 name: beekeeper-api-secret
           resources:
+            requests:
+              cpu: "8000m"
+              memory: "1Gi"
             limits:
-              cpu: 4
               memory: "1Gi"
           ports:
             - name: api
