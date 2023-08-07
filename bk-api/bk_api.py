@@ -65,6 +65,8 @@ if not KEY_GEN_TYPE:
 DEFAULT_BEEHIVE = os.getenv("DEFAULT_BEEHIVE", "")
 FAKE_DEPLOYMENT = os.getenv("FAKE_DEPLOYMENT", "0") == "1"
 
+BEEKEEPER_ALWAYS_RENEW_CERT = os.getenv("BEEKEEPER_ALWAYS_RENEW_CERT", "0") == "1"
+
 beehives_root = "/beehives"
 node_key = "/config/nodes/nodes.pem"
 
@@ -705,6 +707,10 @@ def kube_secret(name, data):
 # TODO(sean) we should eventually make this an async process as this command can take a while
 def deploy_wes(node_id, this_debug, force=False):
     logger.debug("(deploy_wes) determine correct beehive")
+
+    if BEEKEEPER_ALWAYS_RENEW_CERT:
+        logger.info("(deploy_wes) beekeeper is configured to always renew certs")
+        force = True
 
     proxy = get_node_subprocess_proxy(node_id)
 
