@@ -30,9 +30,9 @@ import json
 import base64
 import yaml
 
-from  bk_db import BeekeeperDB, table_fields , table_fields_index
+from bk_db import BeekeeperDB, table_fields, table_fields_index
 
-#import flask
+# import flask
 
 import logging
 
@@ -49,23 +49,23 @@ from node_subprocess_proxy import NodeSubprocessProxy
 logger = logging.getLogger(__name__)
 
 BASE_KEY_DIR = "/usr/lib/waggle"
-#CA_FILE = os.path.join(BASE_KEY_DIR, "certca/beekeeper_ca_key")
-CA_FILE="/usr/lib/waggle/certca/beekeeper_ca_key"
+# CA_FILE = os.path.join(BASE_KEY_DIR, "certca/beekeeper_ca_key")
+CA_FILE = "/usr/lib/waggle/certca/beekeeper_ca_key"
 
 
-BEEKEEPER_SSHD_API = os.getenv( "BEEKEEPER_SSHD_API", "http://bk-sshd")
-BEEKEEPER_SSHD_HOST = os.getenv( "BEEKEEPER_SSHD_HOST", "bk-sshd")
-#BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
+BEEKEEPER_SSHD_API = os.getenv("BEEKEEPER_SSHD_API", "http://bk-sshd")
+BEEKEEPER_SSHD_HOST = os.getenv("BEEKEEPER_SSHD_HOST", "bk-sshd")
+# BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
 BEEKEEPER_DB_API = "http://localhost:5000"
 KEY_GEN_TYPE = os.getenv("KEY_GEN_TYPE", "")
 KEY_GEN_ARGS = os.getenv("KEY_GEN_ARGS", "")
 if not KEY_GEN_TYPE:
     sys.exit("KEY_GEN_TYPE not defined")
 
-DEFAULT_BEEHIVE=os.getenv("DEFAULT_BEEHIVE", "")
-FAKE_DEPLOYMENT=os.getenv("FAKE_DEPLOYMENT", "0")=="1"
+DEFAULT_BEEHIVE = os.getenv("DEFAULT_BEEHIVE", "")
+FAKE_DEPLOYMENT = os.getenv("FAKE_DEPLOYMENT", "0") == "1"
 
-beehives_root = '/beehives'
+beehives_root = "/beehives"
 node_key = "/config/nodes/nodes.pem"
 
 
@@ -80,40 +80,55 @@ def ShowException():
     filename = f.f_code.co_filename
     linecache.checkcache(filename)
     line = linecache.getline(filename, lineno, f.f_globals)
-    return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(filename, lineno, line.strip(), exc_obj)
+    return 'EXCEPTION IN ({}, LINE {} "{}"): {}'.format(
+        filename, lineno, line.strip(), exc_obj
+    )
 
 
 def b64string_encode(input):
-    return base64.b64encode(str.encode(input)).decode('utf-8')
+    return base64.b64encode(str.encode(input)).decode("utf-8")
 
 
 def register_node(node_id, lock_tables=True, lock_requested_by=""):
+    payload = {
+        "node_id": node_id,
+        "source": "beekeeper-register",
+        "operation": "insert",
+        "field_name": "registration_event",
+        "field_value": datetime.datetime.now().replace(microsecond=0).isoformat(),
+    }
 
-    payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "registration_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
-
-    #url = f'{BEEKEEPER_DB_API}/log'
+    # url = f'{BEEKEEPER_DB_API}/log'
     try:
-        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
-        #bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
+        insert_log(
+            payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by
+        )
+        # bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
     except Exception as e:
-        #raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
+        # raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
         raise Exception(f"insert_log returned: {str(e)}")
 
 
 def register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by=""):
+    payload = {
+        "node_id": node_id,
+        "source": "beekeeper-wes-deploy",
+        "operation": "insert",
+        "field_name": "wes_deploy_event",
+        "field_value": datetime.datetime.now().replace(microsecond=0).isoformat(),
+    }
 
-    payload = {"node_id": node_id, "source": "beekeeper-wes-deploy", "operation":"insert", "field_name": "wes_deploy_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
-
-    #url = f'{BEEKEEPER_DB_API}/log'
+    # url = f'{BEEKEEPER_DB_API}/log'
     try:
-        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
+        insert_log(
+            payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by
+        )
 
     except Exception as e:
         raise Exception(f"insert_log returned: {str(e)}")
 
 
 def set_node_beehive(node_id, beehive_id):
-
     # At this point we already know that beehive exists.
     # Now check if node is already assigned to that beehive
     node_state = None
@@ -121,8 +136,8 @@ def set_node_beehive(node_id, beehive_id):
     try:
         bee_db = get_db()
         node_state = bee_db.get_node_state(node_id)
-    #except bk_db.ObjectNotFound:
-    #    node_state = None
+        # except bk_db.ObjectNotFound:
+        #    node_state = None
         # TODO(sean) we may want to make BeekeeperDB a contextmanager so we can just start using:
         #
         # with get_db() as bee_db:
@@ -138,20 +153,27 @@ def set_node_beehive(node_id, beehive_id):
     if not node_state:
         raise Exception(f"node {node_id} not found")
 
-
     if "beehive" in node_state:
         if node_state["beehive"] == beehive_id:
             logger.debug(f"Node {node_id} is already assigned to beehive {beehive_id}")
             return
 
-    payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "beehive", "field_value": beehive_id}
+    payload = {
+        "node_id": node_id,
+        "source": "beekeeper-register",
+        "operation": "insert",
+        "field_name": "beehive",
+        "field_value": beehive_id,
+    }
 
-    #url = f'{BEEKEEPER_DB_API}/log'
+    # url = f'{BEEKEEPER_DB_API}/log'
     try:
-        insert_log(payload, lock_tables=True, force=True, lock_requested_by="set_node_beehive")
-        #bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
+        insert_log(
+            payload, lock_tables=True, force=True, lock_requested_by="set_node_beehive"
+        )
+        # bk_api_response = requests.post(url,data=json.dumps(payload), timeout=3)
     except Exception as e:
-        #raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
+        # raise Exception(f"Error: X Beekeeper DB API ({url}) cannot be reached: {str(e)}")
         raise Exception(f"insert_log returned: {str(e)}")
 
 
@@ -170,10 +192,9 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
         node_list = bee_db.list_latest_state()
         bee_db.close()
     except Exception as e:
-        raise Exception(f'list_latest_state returned: {str(e)}')
+        raise Exception(f"list_latest_state returned: {str(e)}")
 
-
-    registered_nodes={}
+    registered_nodes = {}
     node_list_len = len(node_list)
     logger.debug(f"Got {node_list_len} nodes from beekeeper API.")
     for node_object in node_list:
@@ -182,15 +203,14 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
             continue
 
         node_id = node_object["id"]
-        registered_nodes[node_id]=True
-
+        registered_nodes[node_id] = True
 
     # check if nodes are registered already
     with open(test_nodes_file) as f:
         for line in f:
-            if len(line) <= 1: # skip empty lines
+            if len(line) <= 1:  # skip empty lines
                 continue
-            if line[0]=="#": # skip comments
+            if line[0] == "#":  # skip comments
                 continue
 
             node_id = line
@@ -202,12 +222,13 @@ def initialize_test_nodes():  # pragma: no cover   this code is not used in prod
             # register node
 
             try:
-                register_node(node_id, lock_tables=False)  # Locking mysql tables at initialization does not work for some unclear reason
+                register_node(
+                    node_id, lock_tables=False
+                )  # Locking mysql tables at initialization does not work for some unclear reason
             except Exception as e:
                 raise Exception(f"Node registration failed: {str(e)}")
 
             logger.debug(f"Node {node_id} registered.")
-
 
     return
 
@@ -237,7 +258,7 @@ def get_node_keypair(node_id):
 
 
 def post_node_credentials(node_id, private_key, public_key):
-    #ssh_key_private", "ssh_key_public
+    # ssh_key_private", "ssh_key_public
     bee_db = get_db()
     post_creds = {"ssh_key_private": private_key, "ssh_key_public": public_key}
 
@@ -265,9 +286,13 @@ def _register(node_id):
         logger.info("got credentials from DB")
         # Files found in DB,nor write to disk so they can be used to create certififcate
         try:
-            key_generator.write_keys_to_files(node_id, creds["private_key"], creds["public_key"])
+            key_generator.write_keys_to_files(
+                node_id, creds["private_key"], creds["public_key"]
+            )
         except Exception as e:
-            raise Exception(f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}")
+            raise Exception(
+                f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}"
+            )
     else:
         # generate new keys sizgned by the CA for custom tunnel to beekeeper
         # create a user somewhere to allow the "node specific user" to connect
@@ -288,22 +313,26 @@ def _register(node_id):
 
     logger.debug("- generate certificate")
     try:
-        cert_obj = key_generator.create_reverse_tunnel_certificate(node_id, CA_FILE) # returns { "certificate": certificate, "user": user}
+        cert_obj = key_generator.create_reverse_tunnel_certificate(
+            node_id, CA_FILE
+        )  # returns { "certificate": certificate, "user": user}
     except Exception as e:
-            raise Exception(f"key_generator.create_reverse_tunnel_certificate returned: {str(e)}")
+        raise Exception(
+            f"key_generator.create_reverse_tunnel_certificate returned: {str(e)}"
+        )
     data = dict(creds)
 
     user = cert_obj["user"]
 
-    data["id"] = user # note that this is ID prefixed with "node_"
+    data["id"] = user  # note that this is ID prefixed with "node_"
     data["certificate"] = cert_obj["certificate"]
 
-    #data = {
+    # data = {
     #    "id": key_generator.results["user"], # note that this is ID prfixed with "node_"
     #    "private_key": key_generator.results["private_key"],
     #    "public_key": key_generator.results["public_key"],
     #    "certificate": key_generator.results["certificate"],
-    #}
+    # }
 
     # request for EP user be added
     logger.debug("- request for EP user be added")
@@ -314,29 +343,31 @@ def _register(node_id):
 
     logger.debug(f"- successfully created user [{user}]")
 
-    #payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "registration_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
+    # payload = {"node_id": node_id, "source": "beekeeper-register", "operation":"insert", "field_name": "registration_event", "field_value": datetime.datetime.now().replace(microsecond=0).isoformat()}
     return data
 
 
 def create_beehive_files(beehive_obj):
-    beehive_id =  beehive_obj["id"]
-    beehive_dir = os.path.join(beehives_root, beehive_id )
-    beehive_dir_ssh = os.path.join(beehive_dir , "ssh")
-    beehive_dir_tls = os.path.join(beehive_dir , "tls")
+    beehive_id = beehive_obj["id"]
+    beehive_dir = os.path.join(beehives_root, beehive_id)
+    beehive_dir_ssh = os.path.join(beehive_dir, "ssh")
+    beehive_dir_tls = os.path.join(beehive_dir, "tls")
     if not os.path.exists(beehive_dir_ssh):
         os.makedirs(beehive_dir_ssh)
     if not os.path.exists(beehive_dir_tls):
         os.makedirs(beehive_dir_tls)
 
     # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
-    files = {   "tls/cakey.pem": "tls-key",
-                "tls/cacert.pem": "tls-cert",
-                "ssh/ca" : "ssh-key",
-                "ssh/ca.pub" : "ssh-pub",
-                "ssh/ca-cert.pub" :  "ssh-cert"}
+    files = {
+        "tls/cakey.pem": "tls-key",
+        "tls/cacert.pem": "tls-cert",
+        "ssh/ca": "ssh-key",
+        "ssh/ca.pub": "ssh-pub",
+        "ssh/ca-cert.pub": "ssh-cert",
+    }
 
     for file in files:
-        full_filename = os.path.join(beehive_dir, file )
+        full_filename = os.path.join(beehive_dir, file)
 
         if os.path.exists(full_filename):
             continue
@@ -346,13 +377,13 @@ def create_beehive_files(beehive_obj):
         if not data:
             obj_str = ",".join(beehive_obj.keys())
             raise Exception(f"Data for beehive not found ({key}) (got: {obj_str})")
-        with open(full_filename, 'a') as cert_file:
+        with open(full_filename, "a") as cert_file:
             cert_file.write(data)
 
         os.chmod(full_filename, 0o600)
 
-
     return
+
 
 # /
 class Root(MethodView):
@@ -360,103 +391,109 @@ class Root(MethodView):
         return "SAGE Beekeeper API"
 
 
-def insert_log(postData, lock_tables=True, force=False, lock_requested_by="", replay=True):
+def insert_log(
+    postData, lock_tables=True, force=False, lock_requested_by="", replay=True
+):
     listData = None
-    if isinstance( postData, dict ):
-        listData = [ postData ]
-        #print("Putting postData into array ", flush=True)
+    if isinstance(postData, dict):
+        listData = [postData]
+        # print("Putting postData into array ", flush=True)
     else:
         listData = postData
-        #print("Use postData as is ", flush=True)
+        # print("Use postData as is ", flush=True)
 
-    if not isinstance( listData, list ):
+    if not isinstance(listData, list):
         raise Exception("list expected")
 
-
-
-
-
     logData = []
-    default_effective_time = datetime.datetime.now(datetime.timezone.utc) # this way all operations in this submission have the exact same time
+    default_effective_time = datetime.datetime.now(
+        datetime.timezone.utc
+    )  # this way all operations in this submission have the exact same time
     for op in listData:
-
         for f in ["node_id", "operation", "field_name", "field_value", "source"]:
             if f not in op:
-                raise Exception(f'Field {f} missing. Got: {json.dumps(op)}')
+                raise Exception(f"Field {f} missing. Got: {json.dumps(op)}")
 
         if not force:
             if op["field_name"] == "beehive":
-                raise Exception("Field \"beehive\" cannot be set via the /log resource")
-
+                raise Exception('Field "beehive" cannot be set via the /log resource')
 
         try:
             newLogDataEntry = {
                 "node_id": op["node_id"],
-                "table_name": "nodes_history" ,
+                "table_name": "nodes_history",
                 "operation": op["operation"],
                 "field_name": op["field_name"],
                 "new_value": op["field_value"],
                 "source": op["source"],
-                "effective_time" : op.get("effective_time", default_effective_time.isoformat()) }
+                "effective_time": op.get(
+                    "effective_time", default_effective_time.isoformat()
+                ),
+            }
 
         except Exception as ex:
             raise Exception(f"Unexpected error in creating newLogDataEntry : {ex}")
 
         logData.append(newLogDataEntry)
-        #print("success", flush=True)
+        # print("success", flush=True)
 
     bee_db = None
     try:
         bee_db = get_db()
     except Exception as e:
-        raise Exception(f"Could not create BeekeeperDB: {e}" )
+        raise Exception(f"Could not create BeekeeperDB: {e}")
 
     try:
-        bee_db.nodes_log_add(logData, lock_tables=lock_tables, lock_requested_by=lock_requested_by, replay=replay)  #  effective_time=effective_time)
+        bee_db.nodes_log_add(
+            logData,
+            lock_tables=lock_tables,
+            lock_requested_by=lock_requested_by,
+            replay=replay,
+        )  #  effective_time=effective_time)
     except Exception as ex:
-        raise Exception(f"nodes_log_add failed: {ex}" )
-
-
-
+        raise Exception(f"nodes_log_add failed: {ex}")
 
     bee_db.close()
 
     return
 
 
-
 # /log
 class Log(MethodView):
-
     # example: curl -X POST -d '[{"node_id": "123", "operation":"insert", "field_name": "name", "field_value": "Rumpelstilzchen"}]' localhost:5000/log
 
     def post(self):
-
         try:
-
             postData = request.get_json(force=True, silent=False)
 
         except Exception as e:
-            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Error parsing json: { sys.exc_info()[0] }  {e}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         if not postData:
-            raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Could not parse json.", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         try:
             insert_log(postData, lock_requested_by="log-resource", replay=True)
         except Exception as e:
-            raise ErrorResponse(f"Could not insert log: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Could not insert log: {str(e)}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
-        response = {"success" : 1}
+        response = {"success": 1}
         return response
-
 
     def get(self):
         return "try POST..."
 
+
 # /replay
 class Replay(MethodView):
-
     # request a replay (request will be put in mysql)
     # this can be used when items have been inserted without replays enabled.
     def get(self):
@@ -464,15 +501,14 @@ class Replay(MethodView):
         try:
             bee_db = get_db()
         except Exception as e:
-            raise Exception(f"Could not create BeekeeperDB: {e}" )
+            raise Exception(f"Could not create BeekeeperDB: {e}")
 
         try:
             bee_db.replay_log()
         except Exception as e:
-            raise Exception(f"Could not create BeekeeperDB: {e}" )
+            raise Exception(f"Could not create BeekeeperDB: {e}")
 
-
-        response = {"success" : 1}
+        response = {"success": 1}
         return response
 
 
@@ -484,64 +520,77 @@ class ListStates(MethodView):
             node_state = bee_db.list_latest_state()
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Unexpected error: {e}", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
-        return { "data" : node_state }
-
-
+        return {"data": node_state}
 
 
 # /state/<node_id>
 class State(MethodView):
     def get(self, node_id):
         try:
-
             bee_db = get_db()
             node_state = bee_db.get_node_state(node_id)
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Unexpected error: {e}", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         if node_state == None:
             raise ErrorResponse(f"Error: node {node_id} not found")
 
+        return {"data": node_state}
 
-
-        return { "data" : node_state }
 
 # draft of a scp function, did not end up using it, but might come in handy if needed
 def scp(source, node_id, target):
-    command_array = ["scp",
-           "-i", node_key ,
-           "-o", "UserKnownHostsFile=/dev/null",
-           "-o", "StrictHostKeyChecking=no",
-           "-o", "IdentitiesOnly=true",
-           "-o" ,f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
-           source,
-           f"root@foo:{target}"]
+    command_array = [
+        "scp",
+        "-i",
+        node_key,
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "IdentitiesOnly=true",
+        "-o",
+        f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem  netcat -U /home_dirs/node-{node_id}/rtun.sock",
+        source,
+        f"root@foo:{target}",
+    ]
 
     try:
-        result_stdout ,result_stderr, exit_code = run_command_communicate(command_array)
+        result_stdout, result_stderr, exit_code = run_command_communicate(command_array)
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
 
     return result_stdout, result_stderr, exit_code
 
+
 # TODO(sean) migrate this and other dependent functions to use node subprocess proxy. this will
 # allow more control during unit testing.
 def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     proxy_cmd = f"ProxyCommand=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@{BEEKEEPER_SSHD_HOST} -p 2201 -i /config/admin-key/admin.pem"
-    ssh_cmd =  ["ssh",
-                #"-tt",
-                "-i", node_key , # this must be the key that allows ssh into the node , this key might be the same for all nodes
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "IdentitiesOnly=true",
-                ]
+    ssh_cmd = [
+        "ssh",
+        # "-tt",
+        "-i",
+        node_key,  # this must be the key that allows ssh into the node , this key might be the same for all nodes
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "IdentitiesOnly=true",
+    ]
 
     if quiet_mode:
         proxy_cmd += " -q"
-        ssh_cmd.append('-q')
+        ssh_cmd.append("-q")
 
     proxy_cmd += f" netcat -U /home_dirs/node-{node_id}/rtun.sock"
     ssh_cmd.append("-o")
@@ -555,8 +604,9 @@ def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     result_stderr = ""
     exit_code = None
     try:
-
-        result_stdout ,result_stderr, exit_code = run_command_communicate(ssh_cmd, input_str = input_str)
+        result_stdout, result_stderr, exit_code = run_command_communicate(
+            ssh_cmd, input_str=input_str
+        )
 
     except Exception as e:
         raise Exception(f"run_command_communicate: {str(e)}")
@@ -565,43 +615,54 @@ def node_ssh(node_id, command, input_str=None, quiet_mode=False):
     result_stderr_str = ""
 
     if result_stdout:
-        result_stdout_str = result_stdout.decode('utf-8')
+        result_stdout_str = result_stdout.decode("utf-8")
 
     if result_stderr:
-        result_stderr_str = result_stderr.decode('utf-8')
+        result_stderr_str = result_stderr.decode("utf-8")
 
-    return (result_stdout_str ,result_stderr_str, exit_code)
+    return (result_stdout_str, result_stderr_str, exit_code)
 
 
 def node_ssh_with_logging(node_id, command, input_str=None):
     try:
-        result_stdout, result_stderr , exit_code = node_ssh(node_id, command, input_str=input_str)
+        result_stdout, result_stderr, exit_code = node_ssh(
+            node_id, command, input_str=input_str
+        )
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
-    logger.debug("Stdout from node: "+result_stdout)
+    logger.debug("Stdout from node: " + result_stdout)
     if result_stderr:
-        logger.error("Stderr from node: "+result_stderr)
+        logger.error("Stderr from node: " + result_stderr)
 
     if exit_code != 0:
         raise Exception(f"Command {command} failed with exit_code {exit_code}")
 
+
 # kube_resource: a dict
 def kubectl_apply(node_id, kube_resource):
     try:
-        result_stdout_str ,result_stderr_str, exit_code = node_ssh(node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource))
+        result_stdout_str, result_stderr_str, exit_code = node_ssh(
+            node_id, "kubectl apply -f -", input_str=yaml.dump(kube_resource)
+        )
     except Exception as e:
         raise Exception(f"node_ssh failed: {str(e)}")
 
-    if (not "unchanged" in result_stdout_str) and (not "created" in result_stdout_str)and (not "configured" in result_stdout_str):
-         raise Exception(f"result_stdout_str:{result_stdout_str} result_stderr_str:{result_stderr_str}")
+    if (
+        (not "unchanged" in result_stdout_str)
+        and (not "created" in result_stdout_str)
+        and (not "configured" in result_stdout_str)
+    ):
+        raise Exception(
+            f"result_stdout_str:{result_stdout_str} result_stderr_str:{result_stderr_str}"
+        )
 
     return result_stdout_str, result_stderr_str, exit_code
 
 
 def kubectl_apply_with_logging(node_id, kube_resource):
     try:
-        result_stdout, result_stderr , exit_code = kubectl_apply(node_id, kube_resource)
+        result_stdout, result_stderr, exit_code = kubectl_apply(node_id, kube_resource)
         logger.debug(result_stdout)
         if result_stderr:
             logger.error(result_stderr)
@@ -612,6 +673,7 @@ def kubectl_apply_with_logging(node_id, kube_resource):
         raise Exception(f"kubectl_apply returned exit_code {exit_code}")
 
     return
+
 
 def kube_configmap(name, data):
     return {
@@ -638,6 +700,7 @@ def kube_secret(name, data):
     except Exception as e:
         raise Exception(f"(kube_secret) {str(e)}")
 
+
 # force: create new certs even if old ones exist
 # TODO(sean) we should eventually make this an async process as this command can take a while
 def deploy_wes(node_id, this_debug, force=False):
@@ -659,7 +722,7 @@ def deploy_wes(node_id, this_debug, force=False):
     if not "beehive" in node_state:
         raise Exception(f"Node is not assigned to any beehive")
 
-    assign_beehive=node_state["beehive"]
+    assign_beehive = node_state["beehive"]
     if assign_beehive == "":
         raise Exception(f"Node is not assigned to any beehive")
 
@@ -669,7 +732,7 @@ def deploy_wes(node_id, this_debug, force=False):
         raise Exception(f"finding beehive for node failed: {str(e)}")
 
     if not beehive_obj:
-        raise Exception(f"Beehive {assign_beehive} unknown" )
+        raise Exception(f"Beehive {assign_beehive} unknown")
 
     if not isinstance(beehive_obj, dict):
         raise Exception(f"beehive_obj is not a dict")
@@ -695,7 +758,7 @@ def deploy_wes(node_id, this_debug, force=False):
 
     logger.debug("calling create_ssh_upload_cert")
     try:
-        create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force )
+        create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=force)
     except Exception as e:
         raise Exception(f"create_ssh_upload_cert failed: {type(e).__name__} {str(e)}")
 
@@ -734,21 +797,27 @@ def deploy_wes(node_id, this_debug, force=False):
     ssh_upload_cert = node_creds["ssh_upload_cert"]
 
     # create and push secret for upload-ssh-key
-    upload_secret = kube_secret("wes-beehive-upload-ssh-key", {
-        "ssh-key": ssh_key_private,
-        "ssh-key.pub": ssh_key_public,
-        "ssh-key-cert.pub": ssh_upload_cert,
-    })
+    upload_secret = kube_secret(
+        "wes-beehive-upload-ssh-key",
+        {
+            "ssh-key": ssh_key_private,
+            "ssh-key.pub": ssh_key_public,
+            "ssh-key-cert.pub": ssh_upload_cert,
+        },
+    )
     kubectl_apply_with_logging(node_id, upload_secret)
 
     # create and upload tls secret
-    tls_secret = kube_secret("wes-beehive-rabbitmq-tls", {
-        "cert.pem": node_creds["tls_cert"],
-        "key.pem": node_creds["tls_key"],
-    })
+    tls_secret = kube_secret(
+        "wes-beehive-rabbitmq-tls",
+        {
+            "cert.pem": node_creds["tls_cert"],
+            "key.pem": node_creds["tls_key"],
+        },
+    )
     kubectl_apply_with_logging(node_id, tls_secret)
 
-    #return {"result": "A"}
+    # return {"result": "A"}
     ####################
     # waggle id / host / port config map
 
@@ -761,13 +830,16 @@ def deploy_wes(node_id, this_debug, force=False):
     upload_host = beehive_obj["upload_host"]
     upload_port = beehive_obj["upload_port"]
 
-    waggle_ConfigMap = kube_configmap("waggle-config", {
-        "WAGGLE_NODE_ID": node_id.lower(),
-        "WAGGLE_BEEHIVE_RABBITMQ_HOST": rmq_host,
-        "WAGGLE_BEEHIVE_RABBITMQ_PORT": str(rmq_port),
-        "WAGGLE_BEEHIVE_UPLOAD_HOST": upload_host,
-        "WAGGLE_BEEHIVE_UPLOAD_PORT": str(upload_port),
-    })
+    waggle_ConfigMap = kube_configmap(
+        "waggle-config",
+        {
+            "WAGGLE_NODE_ID": node_id.lower(),
+            "WAGGLE_BEEHIVE_RABBITMQ_HOST": rmq_host,
+            "WAGGLE_BEEHIVE_RABBITMQ_PORT": str(rmq_port),
+            "WAGGLE_BEEHIVE_UPLOAD_HOST": upload_host,
+            "WAGGLE_BEEHIVE_UPLOAD_PORT": str(upload_port),
+        },
+    )
     kubectl_apply_with_logging(node_id, waggle_ConfigMap)
 
     ###########################
@@ -781,35 +853,47 @@ def deploy_wes(node_id, this_debug, force=False):
     ca_ssh_pub = beehive_obj["ssh-pub"]
     ca_ssh_cert = beehive_obj["ssh-cert"]
     ca_tls_cert = beehive_obj["tls-cert"]
-    #return {"result": "B"}
-    beehive_ssh_ca_ConfigMap = kube_configmap("beehive-ssh-ca", {
-        "ca.pub": ca_ssh_pub,
-        "ca-cert.pub": ca_ssh_cert,
-    })
+    # return {"result": "B"}
+    beehive_ssh_ca_ConfigMap = kube_configmap(
+        "beehive-ssh-ca",
+        {
+            "ca.pub": ca_ssh_pub,
+            "ca-cert.pub": ca_ssh_cert,
+        },
+    )
     kubectl_apply_with_logging(node_id, beehive_ssh_ca_ConfigMap)
 
     ###########################
     # beehive-tls-ca configmap
 
-    beehive_tls_ca_ConfigMap = kube_configmap("beehive-ca-certificate", {
-        "cacert.pem": ca_tls_cert,
-    })
+    beehive_tls_ca_ConfigMap = kube_configmap(
+        "beehive-ca-certificate",
+        {
+            "cacert.pem": ca_tls_cert,
+        },
+    )
     kubectl_apply_with_logging(node_id, beehive_tls_ca_ConfigMap)
 
-    node_private_git_repo_key = "/config/node-private-git-repo-key/node-private-git-repo-key"
+    node_private_git_repo_key = (
+        "/config/node-private-git-repo-key/node-private-git-repo-key"
+    )
     if os.path.exists(node_private_git_repo_key):
-        result_stdout , result_stderr, exit_code = scp(node_private_git_repo_key, node_id, "/root/.ssh/")
-        if exit_code != 0 :
+        result_stdout, result_stderr, exit_code = scp(
+            node_private_git_repo_key, node_id, "/root/.ssh/"
+        )
+        if exit_code != 0:
             raise Exception(f"scp failed {result_stderr} and {result_stdout}")
     else:
-        logger.info("/config/node-private-git-repo-key/node-private-git-repo-key not found, skipping")
+        logger.info(
+            "/config/node-private-git-repo-key/node-private-git-repo-key not found, skipping"
+        )
 
     final_command = "./update-stack.sh"
     if FAKE_DEPLOYMENT:
-        final_command = "echo \"This fake deployment was successful\""
+        final_command = 'echo "This fake deployment was successful"'
 
-    deploy_script= \
-"""\
+    deploy_script = (
+        """\
 #!/bin/sh
 ### This script was generated by beekeeper ###
 set -e
@@ -829,10 +913,11 @@ git pull origin main
 
 cd /opt/waggle-edge-stack/kubernetes
 
-""" + final_command
+"""
+        + final_command
+    )
 
-
-    #return {"result": "C"}
+    # return {"result": "C"}
     try:
         node_ssh_with_logging(node_id, "cat > /tmp/deploy.sh", input_str=deploy_script)
         node_ssh_with_logging(node_id, "sh /tmp/deploy.sh")
@@ -840,21 +925,24 @@ cd /opt/waggle-edge-stack/kubernetes
         raise Exception(f"node_ssh_with_logging failed: {str(e)}")
 
     try:
-        register_wes_deployment_event(node_id, lock_tables=True, lock_requested_by="wes_deployment")
+        register_wes_deployment_event(
+            node_id, lock_tables=True, lock_requested_by="wes_deployment"
+        )
     except Exception as e:
         raise Exception(f"register_wes_deployment_event failed: {str(e)}")
 
     if this_debug:
         return {
             "waggle_ConfigMap": waggle_ConfigMap,
-            "tls_secret":tls_secret,
+            "tls_secret": tls_secret,
             "upload_secret": upload_secret,
         }
 
-        #node_creds["tls_result_stdout"] = result_stdout
-        #node_creds["tls_result_stderr"] = result_stderr
+        # node_creds["tls_result_stdout"] = result_stdout
+        # node_creds["tls_result_stderr"] = result_stderr
 
-    return {"success":True}
+    return {"success": True}
+
 
 def add_vsn(node_id):
     proxy = get_node_subprocess_proxy(node_id)
@@ -875,17 +963,27 @@ def add_vsn(node_id):
 
     return {"success": True}
 
+
 def get_node_state(node_id):
     with closing(get_db()) as db:
         return db.get_node_state(node_id)
 
-def add_vsn_event(node_id,field_value, lock_tables=True, lock_requested_by=""):
-    payload = {"node_id": node_id, "source": "beekeeper-add-vsn", "operation":"insert",
-                "field_name": "vsn", "field_value": field_value}
+
+def add_vsn_event(node_id, field_value, lock_tables=True, lock_requested_by=""):
+    payload = {
+        "node_id": node_id,
+        "source": "beekeeper-add-vsn",
+        "operation": "insert",
+        "field_name": "vsn",
+        "field_value": field_value,
+    }
     try:
-        insert_log(payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by)
+        insert_log(
+            payload, lock_tables=lock_tables, lock_requested_by=lock_requested_by
+        )
     except Exception as e:
         raise Exception(f"insert_log returned: {str(e)}")
+
 
 def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
@@ -906,7 +1004,6 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
 
     beehive_key_type_args = beehive_obj.get("key-type-args", "")
 
-
     logger.debug("call create_beehive_files")
     # make sure /beehives/... files exist
     try:
@@ -918,7 +1015,6 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
 
     if not os.path.exists(ca_path):
         raise Exception(f"ssh ca file {ca_path} not found")
-
 
     logger.debug("call get_node_keypair")
     # check if key-pair is available
@@ -932,34 +1028,46 @@ def create_ssh_upload_cert(bee_db, node_id, beehive_obj, force=False):
 
     logger.debug("got node credentials from DB")
 
-    #beehive_obj["comment":"found creds"]
+    # beehive_obj["comment":"found creds"]
     key_generator = SSHKeyGen(deleteDirectory=False)
 
     try:
-        key_generator.write_keys_to_files(node_id, creds["private_key"], creds["public_key"])
+        key_generator.write_keys_to_files(
+            node_id, creds["private_key"], creds["public_key"]
+        )
     except Exception as e:
-        raise Exception(f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}")
+        raise Exception(
+            f"key_generator.write_keys_to_files returned: {type(e)}: {str(e)}"
+        )
 
     try:
-        upload_certificate = key_generator.create_upload_certificate(ca_path, beehive_key_type, beehive_key_type_args, node_id.lower())
+        upload_certificate = key_generator.create_upload_certificate(
+            ca_path, beehive_key_type, beehive_key_type_args, node_id.lower()
+        )
     except Exception as e:
-        raise Exception(f"key_generator.create_upload_certificate returned: {type(e)}: {str(e)}")
+        raise Exception(
+            f"key_generator.create_upload_certificate returned: {type(e)}: {str(e)}"
+        )
 
-        #{ "certificate": certificate, "user": user}
+        # { "certificate": certificate, "user": user}
 
     upload_certificate_values = {}
     upload_certificate_values["ssh_upload_cert"] = upload_certificate["certificate"]
     upload_certificate_values["ssh_upload_user"] = upload_certificate["user"]
 
-    count = bee_db.set_node_credentials(node_id, beehive_id, upload_certificate_values, force=force)
+    count = bee_db.set_node_credentials(
+        node_id, beehive_id, upload_certificate_values, force=force
+    )
     if not force:
-        if count != 2 :
-            raise Exception("Saving ssh upload cert in mysql seems to have failed, expected 2 insertions, but got {count}")
+        if count != 2:
+            raise Exception(
+                "Saving ssh upload cert in mysql seems to have failed, expected 2 insertions, but got {count}"
+            )
 
     return
 
-def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
 
+def create_tls_cert_for_node(bee_db, node_id, beehive_obj, force=False):
     beehive_id = beehive_obj.get("id", "")
     if not beehive_id:
         raise Exception(f"beehive_id is missing")
@@ -983,7 +1091,6 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
     if not os.path.exists(tls_ca_path):
         raise Exception(f"tls ca file {tls_ca_path} not found")
 
-
     logger.debug("call get_node_keypair")
     # check if key-pair is available
     try:
@@ -994,15 +1101,14 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
     if not creds:
         raise Exception(f"Node credentials not found")
 
-
     # creds["private_key"]
 
     key_generator = SSHKeyGen(deleteDirectory=False)
 
-
-    #create node TLS (returns keyfile and certfile)
-    result = key_generator.create_node_tls_certificate(tls_ca_path, tls_ca_cert_path, "node-"+node_id.lower())
-
+    # create node TLS (returns keyfile and certfile)
+    result = key_generator.create_node_tls_certificate(
+        tls_ca_path, tls_ca_cert_path, "node-" + node_id.lower()
+    )
 
     # store results
     upload_values = {}
@@ -1011,20 +1117,20 @@ def create_tls_cert_for_node(bee_db, node_id, beehive_obj , force=False):
     upload_values["tls_user"] = result["user"]
 
     count = bee_db.set_node_credentials(node_id, beehive_id, upload_values, force=force)
-    if (not force) and count != 3 :
-        raise Exception("Saving node tls files in mysql seems to have failed, expected 3 insertions, but got {count}")
-
+    if (not force) and count != 3:
+        raise Exception(
+            "Saving node tls files in mysql seems to have failed, expected 3 insertions, but got {count}"
+        )
 
     return
 
 
 # /node/<node_id>
 class Node(MethodView):
-
     # TODO(sean) We should review the public endpoints. I personally find it odd that we can post to /node
     # but must get node info from /state.
     def get(self, node_id):
-        return {"error" : "nothing here, use the /state resource instead "}
+        return {"error": "nothing here, use the /state resource instead "}
 
     # example: curl localhost:5000/node/xxx -d '{"assign_beehive": "sage-beehive"}'
     #          curl localhost:5000/node/xxx -d '{"deploy_wes": true}'
@@ -1032,10 +1138,13 @@ class Node(MethodView):
         try:
             postData = request.get_json(force=True, silent=False)
         except Exception as e:
-            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Error parsing json: { sys.exc_info()[0] }  {e}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
-        this_debug = request.args.get('debug', "false") in ["true", "1"]
-        force = request.args.get('force', "false") in ["true", "1"]
+        this_debug = request.args.get("debug", "false") in ["true", "1"]
+        force = request.args.get("force", "false") in ["true", "1"]
 
         if "assign_beehive" in postData:
             assign_beehive = postData["assign_beehive"]
@@ -1043,14 +1152,20 @@ class Node(MethodView):
                 set_node_beehive(node_id, assign_beehive)
             except Exception as e:
                 logger.exception("assign_beehive failed: %s", e)
-                raise ErrorResponse(f"set_node_beehive failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(
+                    f"set_node_beehive failed: { type(e).__name__ }: {str(e)} {ShowException()}",
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
         if "deploy_wes" in postData:
             try:
                 result = deploy_wes(node_id, this_debug, force=force)
             except Exception as e:
                 logger.exception("deploy_wes failed: %s", e)
-                raise ErrorResponse(f"deploy_wes failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(
+                    f"deploy_wes failed: { type(e).__name__ }: {str(e)} {ShowException()}",
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
             return jsonify(result)
 
         if "vsn" in postData:
@@ -1058,229 +1173,230 @@ class Node(MethodView):
                 result = add_vsn(node_id)
             except Exception as e:
                 logger.exception("add_vsn failed: %s", e)
-                raise ErrorResponse(f"add_vsn failed: { type(e).__name__ }: {str(e)} {ShowException()}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(
+                    f"add_vsn failed: { type(e).__name__ }: {str(e)} {ShowException()}",
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
         return jsonify({"success": True})
 
 
 class BeehivesList(MethodView):
-
     def get(self):
-
-        view = request.args.get('view', "")
+        view = request.args.get("view", "")
 
         try:
             bee_db = get_db()
             fields = ["id"]
             if view == "full":
-                fields=None
+                fields = None
 
-            result =  bee_db.get_objects('beehives', fields = fields)
+            result = bee_db.get_objects("beehives", fields=fields)
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Error getting list of beehives: { type(e).__name__ }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Error getting list of beehives: { type(e).__name__ }  {e}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
-        return jsonify({"data":result})
-
+        return jsonify({"data": result})
 
     # create/update  beehive
     # example: curl localhost:5000/beehives -d '{"id": "sage-beehive", "key-type": "rsa-sha2-256", "rmq-host":"foobar4", "rmq-port": 7, "upload-host":"x", "upload-port": 123}'
     # key-type: rsa-sha2-256  or Ed25519
     def post(self):
         try:
-#request.get
+            # request.get
             postData = request.get_json(force=True, silent=False)
 
         except Exception as e:
-
-            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
+            raise ErrorResponse(
+                f"Error parsing json: { sys.exc_info()[0] }  {e}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         if not "id" in postData:
-            raise ErrorResponse(f"Field id is missing" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Field id is missing", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         if not "key-type" in postData:
-            raise ErrorResponse(f"Field key-type is missing" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Field key-type is missing",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         beehive_id = postData["id"]
         key_type = postData["key-type"]
-        #key_type_args = postData.get("key-type-args", "")
+        # key_type_args = postData.get("key-type-args", "")
 
         bee_db = get_db()
 
-        #TODO check if beehive already exists
+        # TODO check if beehive already exists
 
         beehive_obj = {"id": beehive_id}
 
-        #modified = 0
-        #updates = {}
-        for key in ["key_type", "key_type_args", "rmq_host", "rmq_port" , "upload_host" , "upload_port"]:
+        # modified = 0
+        # updates = {}
+        for key in [
+            "key_type",
+            "key_type_args",
+            "rmq_host",
+            "rmq_port",
+            "upload_host",
+            "upload_port",
+        ]:
             key_dash = key.replace("_", "-")
             if not key_dash in postData:
                 continue
 
             beehive_obj[key] = postData[key_dash]
 
-
-
         modified = bee_db.insert_object("beehives", beehive_obj, force=True)
         bee_db.close()
         return jsonify({"modified": modified})
 
 
-
 class Beehives(MethodView):
-
     # get beehive object including all credentials
     def get(self, beehive_id):
-
-
         bee_db = get_db()
         obj = bee_db.get_beehive(beehive_id)
         if not obj:
-            raise Exception(f"Beehive {beehive_id} not found" )
-
+            raise Exception(f"Beehive {beehive_id} not found")
 
         bee_db.close()
         return jsonify(obj)
 
-
     # configure beehive credentials
     # curl -F "tls-key=@tls/ca/cakey.pem" -F "tls-cert=@tls/ca/cacert.pem"  -F "ssh-key=@ssh/ca/ca" -F "ssh-pub=@ssh/ca/ca.pub" -F "ssh-cert=@ssh/ca/ca-cert.pub"  localhost:5000/beehives/sage-beehive
     def post(self, beehive_id):
-
-
         expected_forms = ["tls-key", "tls-cert", "ssh-key", "ssh-pub", "ssh-cert"]
 
         count_updated = 0
-        data={}
+        data = {}
         try:
-
             bee_db = get_db()
             obj = bee_db.get_beehive(beehive_id)
             if not obj:
-                raise Exception(f"Beehive {beehive_id} not found" )
-
-
+                raise Exception(f"Beehive {beehive_id} not found")
 
             for formname in request.files:
                 if not formname in expected_forms:
-                    raise Exception(f"Formname {formname} not supported" )
+                    raise Exception(f"Formname {formname} not supported")
 
             # we could remove this check...
             for formname in expected_forms:
                 if not formname in request.files:
-                    raise Exception(f"Formname {formname} missing" )
-
+                    raise Exception(f"Formname {formname} missing")
 
             for formname in request.files:
-
-
                 formdata = request.files.get(formname).read().decode("utf-8")
                 if not formdata:
-                    raise Exception(f"Field {formname} empty" )
+                    raise Exception(f"Field {formname} empty")
 
                 data[formname] = formdata
-                #logger.debug(f"data: {formname} {data[formname]}")
-                #filename = secure_filename(file.filename)
-                #logger.debug(f"filename: {filename}")
-
+                # logger.debug(f"data: {formname} {data[formname]}")
+                # filename = secure_filename(file.filename)
+                # logger.debug(f"filename: {filename}")
 
             for formname in data:
-
                 col_name = formname.replace("-", "_ca_")
 
-                count_updated += bee_db.update_object_field("beehives", col_name, data[formname], "id", beehive_id)
+                count_updated += bee_db.update_object_field(
+                    "beehives", col_name, data[formname], "id", beehive_id
+                )
 
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"something failed: {str(e)}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"something failed: {str(e)}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         return jsonify({"modified": count_updated})
 
-
     def delete(self, beehive_id):
-
         bee_db = get_db()
-        result = bee_db.delete_object("beehives", "id", beehive_id )
+        result = bee_db.delete_object("beehives", "id", beehive_id)
         bee_db.close()
         return jsonify({"deleted": result})
 
 
 class Credentials(MethodView):
     def get(self, node_id):
-
-
         try:
-
             bee_db = get_db()
             results = bee_db.get_node_keypair(node_id)
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Unexpected error: {e}", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         if not results:
-            raise ErrorResponse(f"Not found." , status_code=HTTPStatus.NOT_FOUND )
+            raise ErrorResponse(f"Not found.", status_code=HTTPStatus.NOT_FOUND)
 
         return jsonify(results)
 
     # example: {"ssh_key_private":"x", "ssh_key_public":"y"}
     def post(self, node_id):
-
-
-
         try:
-#request.get
+            # request.get
             postData = request.get_json(force=True, silent=False)
 
         except Exception as e:
-
-            raise ErrorResponse(f"Error parsing json: { sys.exc_info()[0] }  {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Error parsing json: { sys.exc_info()[0] }  {e}",
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         if not postData:
-            raise ErrorResponse(f"Could not parse json." , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Could not parse json.", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         valid_keys = {"ssh_key_private", "ssh_key_public"}
-        expected_keys  = valid_keys
+        expected_keys = valid_keys
 
         for key in postData:
             if key not in valid_keys:
-                raise ErrorResponse(f"Key {key} not supported" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+                raise ErrorResponse(
+                    f"Key {key} not supported",
+                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
         for key in expected_keys:
             if key not in postData:
-                raise ErrorResponse(f"Key {key} missing" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
-
+                raise ErrorResponse(
+                    f"Key {key} missing", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+                )
 
         try:
-
             bee_db = get_db()
             results = bee_db.set_node_keypair(node_id, postData)
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
-
-
+            raise ErrorResponse(
+                f"Unexpected error: {e}", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         return "success"
 
     def delete(self, node_id):
-
-
         try:
-
             bee_db = get_db()
-            result_count = bee_db.delete_object( "node_credentials", "id", node_id)
+            result_count = bee_db.delete_object("node_credentials", "id", node_id)
             bee_db.close()
         except Exception as e:
-            raise ErrorResponse(f"Unexpected error: {e}" , status_code=HTTPStatus.INTERNAL_SERVER_ERROR)
+            raise ErrorResponse(
+                f"Unexpected error: {e}", status_code=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
         return jsonify({"deleted": result_count})
 
 
 class Registration(MethodView):
-
     # example: curl localhost:5000/register?id=xxx
     # this creates id: node-xxx
     def post(self):
@@ -1313,7 +1429,9 @@ class Registration(MethodView):
                 raise Exception(f"error: get_beehive returned: {e}")
 
             if not beehive_obj:
-                logger.error("registration error: beehive does not exist: %r", request.args)
+                logger.error(
+                    "registration error: beehive does not exist: %r", request.args
+                )
                 return "error: beehive not found", HTTPStatus.NOT_FOUND
 
         try:
@@ -1321,23 +1439,34 @@ class Registration(MethodView):
             registration_result = _register(node_id)
         except Exception as e:
             logger.exception("registration error: _register: %r", request.args)
-            return f"error: unable to register id [{node_id} , {e}]\n", HTTPStatus.INTERNAL_SERVER_ERROR
+            return (
+                f"error: unable to register id [{node_id} , {e}]\n",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         # update beekeeper db (create registartion event)
         try:
             register_node(node_id, lock_requested_by="register-resource")
         except Exception as e:
             logger.exception("registration error: register_node: %r", request.args)
-            return f"Error: Creating registration event failed: {str(e)}", HTTPStatus.INTERNAL_SERVER_ERROR
+            return (
+                f"Error: Creating registration event failed: {str(e)}",
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+            )
 
         if beehive_id:
-            time.sleep(2) # see if that helps with the locks
+            time.sleep(2)  # see if that helps with the locks
             # TODO(sean) Review how locks are used. I'm concerned that a sleep is supposed to "help with the locks".
             try:
                 set_node_beehive(node_id, beehive_id)
             except Exception as e:
-                logger.exception("registration error: set_node_beehive: %r", request.args)
-                return f"Error: Adding node to beehive {beehive_id} failed: {e}", HTTPStatus.INTERNAL_SERVER_ERROR
+                logger.exception(
+                    "registration error: set_node_beehive: %r", request.args
+                )
+                return (
+                    f"Error: Adding node to beehive {beehive_id} failed: {e}",
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
         logger.info("registration ok: %r", request.args)
         return registration_result
@@ -1369,11 +1498,15 @@ def get_node_subprocess_proxy(node_id):
     return current_app.node_subprocess_proxy_factory(node_id)
 
 
-def create_app(config={}, node_subprocess_proxy_factory=cluster_node_subprocess_proxy_factory):
+def create_app(
+    config={}, node_subprocess_proxy_factory=cluster_node_subprocess_proxy_factory
+):
     app = Flask(__name__, instance_relative_config=True)
 
-    logging.basicConfig(level=logging.INFO,
-        format="%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  [%(name)s:%(lineno)d] (%(levelname)s): %(message)s",
+    )
 
     CORS(app)
 
@@ -1381,30 +1514,36 @@ def create_app(config={}, node_subprocess_proxy_factory=cluster_node_subprocess_
 
     # database settings
     app.config["MYSQL_HOST"] = config.get("MYSQL_HOST") or os.getenv("MYSQL_HOST")
-    app.config["MYSQL_DATABASE"] = config.get("MYSQL_DATABASE") or os.getenv("MYSQL_DATABASE")
+    app.config["MYSQL_DATABASE"] = config.get("MYSQL_DATABASE") or os.getenv(
+        "MYSQL_DATABASE"
+    )
     app.config["MYSQL_USER"] = config.get("MYSQL_USER") or os.getenv("MYSQL_USER")
-    app.config["MYSQL_PASSWORD"] = config.get("MYSQL_PASSWORD") or os.getenv("MYSQL_PASSWORD")
+    app.config["MYSQL_PASSWORD"] = config.get("MYSQL_PASSWORD") or os.getenv(
+        "MYSQL_PASSWORD"
+    )
 
     app.node_subprocess_proxy_factory = node_subprocess_proxy_factory
 
-    #app.wsgi_app = ecr_middleware(app.wsgi_app)
+    # app.wsgi_app = ecr_middleware(app.wsgi_app)
 
-    app.add_url_rule('/', view_func=Root.as_view('root'))
-    app.add_url_rule('/log', view_func=Log.as_view('log'))
+    app.add_url_rule("/", view_func=Root.as_view("root"))
+    app.add_url_rule("/log", view_func=Log.as_view("log"))
 
-    app.add_url_rule('/replay', view_func=Replay.as_view('replay'))
+    app.add_url_rule("/replay", view_func=Replay.as_view("replay"))
 
-    app.add_url_rule('/state', view_func=ListStates.as_view('list_states'))
-    app.add_url_rule('/state/<node_id>', view_func=State.as_view('state'))
-    app.add_url_rule('/credentials/<node_id>', view_func=Credentials.as_view('credentials'))
+    app.add_url_rule("/state", view_func=ListStates.as_view("list_states"))
+    app.add_url_rule("/state/<node_id>", view_func=State.as_view("state"))
+    app.add_url_rule(
+        "/credentials/<node_id>", view_func=Credentials.as_view("credentials")
+    )
 
     # administrative functionality: e.g. assign beehive
-    app.add_url_rule('/node/<node_id>', view_func=Node.as_view('node'))
-    app.add_url_rule('/beehives', view_func=BeehivesList.as_view('beehivesList'))
-    app.add_url_rule('/beehives/<beehive_id>', view_func=Beehives.as_view('beehives'))
+    app.add_url_rule("/node/<node_id>", view_func=Node.as_view("node"))
+    app.add_url_rule("/beehives", view_func=BeehivesList.as_view("beehivesList"))
+    app.add_url_rule("/beehives/<beehive_id>", view_func=Beehives.as_view("beehives"))
 
     # this is where nodes register
-    app.add_url_rule('/register', view_func=Registration.as_view('registration'))
+    app.add_url_rule("/register", view_func=Registration.as_view("registration"))
 
     @app.errorhandler(ErrorResponse)
     def handle_invalid_usage(error):
@@ -1422,17 +1561,16 @@ def create_app(config={}, node_subprocess_proxy_factory=cluster_node_subprocess_
 
 def init_db():
     with closing(get_db()) as bee_db:
-        for table_name in ['nodes_log', 'nodes_history', 'beehives']:
-
-            stmt = f'SHOW COLUMNS FROM `{table_name}`'
-            logger.debug(f'statement: {stmt}')
+        for table_name in ["nodes_log", "nodes_history", "beehives"]:
+            stmt = f"SHOW COLUMNS FROM `{table_name}`"
+            logger.debug(f"statement: {stmt}")
             bee_db.cur.execute(stmt)
             rows = bee_db.cur.fetchall()
 
             table_fields[table_name] = []
-            table_fields_index[table_name] ={}
+            table_fields_index[table_name] = {}
             for row in rows:
-                #print(row, flush=True)
+                # print(row, flush=True)
                 table_fields[table_name].append(row[0])
 
             for f in range(len(table_fields[table_name])):

@@ -2,8 +2,9 @@ from http import HTTPStatus
 import werkzeug
 from werkzeug.exceptions import HTTPException
 
+
 # from https://flask.palletsprojects.com/en/1.1.x/patterns/apierrors/
-#class ErrorResponse(werkzeug.exceptions.HTTPException):
+# class ErrorResponse(werkzeug.exceptions.HTTPException):
 class ErrorResponse(Exception):
     status_code = HTTPStatus.BAD_REQUEST
 
@@ -17,7 +18,5 @@ class ErrorResponse(Exception):
 
     def to_dict(self):
         rv = dict(self.payload or ())
-        rv['error'] = self.message
+        rv["error"] = self.message
         return rv
-
-

@@ -34,48 +34,49 @@ logger.addHandler(handler)
 
 USER_HOME_DIR = "/home_dirs"
 
-BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API" ,"http://bk-api:5000")
-
-
+BEEKEEPER_DB_API = os.getenv("BEEKEEPER_DB_API", "http://bk-api:5000")
 
 
 def setup_app():
-
-
-
     while True:
         try:
-            bk_api_result = requests.get(f'{BEEKEEPER_DB_API}', timeout=3).content
+            bk_api_result = requests.get(f"{BEEKEEPER_DB_API}", timeout=3).content
         except Exception as e:
-            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}")
+            logger.warning(
+                f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached, requests.get returned: {str(e)}"
+            )
             time.sleep(2)
             continue
 
-        #print(bk_api_result)
-        result_message = bk_api_result.decode("utf-8").strip()   # bk_api_result.decode("utf-8").strip()
-        expected_response = 'SAGE Beekeeper API'
+        # print(bk_api_result)
+        result_message = bk_api_result.decode(
+            "utf-8"
+        ).strip()  # bk_api_result.decode("utf-8").strip()
+        expected_response = "SAGE Beekeeper API"
         if expected_response != result_message:
-            logger.warning(f"Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: \"{result_message}\", expected  \"{expected_response}\"")
+            logger.warning(
+                f'Error: Beekeeper DB API ({BEEKEEPER_DB_API}) cannot be reached: "{result_message}", expected  "{expected_response}"'
+            )
             time.sleep(2)
             continue
 
         break
 
-    logger.debug("Getting list of nodes from beekeeper DB to create home directories and users")
-
-
-
+    logger.debug(
+        "Getting list of nodes from beekeeper DB to create home directories and users"
+    )
 
     try:
-        bk_api_response = requests.get(f'{BEEKEEPER_DB_API}/state', timeout=3)
+        bk_api_response = requests.get(f"{BEEKEEPER_DB_API}/state", timeout=3)
     except Exception as e:
-        logger.Error(f"Beekeeper DB API ({BEEKEEPER_DB_API}/state) cannot be reached: {str(e)}")
+        logger.Error(
+            f"Beekeeper DB API ({BEEKEEPER_DB_API}/state) cannot be reached: {str(e)}"
+        )
         sys.exit(1)
 
     if bk_api_response.status_code != 200:
-        #logger.error("Could not get list of nodes")
+        # logger.error("Could not get list of nodes")
         sys.exit("Could not get list of nodes")
-
 
     json_str = (bk_api_response.content).decode("utf-8")
     node_list = json.loads(json_str)
@@ -84,8 +85,6 @@ def setup_app():
     logger.debug(f"Got {len(node_list)} nodes.")
 
     for node_object in node_list:
-
-
         if "id" not in node_object:
             logger.error("Field id missing")
             continue
@@ -93,8 +92,7 @@ def setup_app():
         node_id = node_object["id"]
         logger.debug(f"Adding node {node_id}.")
 
-
-        user = f'node-{node_id}'
+        user = f"node-{node_id}"
 
         _add_user(user)
 
@@ -104,7 +102,7 @@ def setup_app():
 
 
 def run_membership_script():
-    #entrypoints for this function are the API (addUser) and start of the container
+    # entrypoints for this function are the API (addUser) and start of the container
 
     membership_script = "/entrypoint-config/run.sh"
     if exists(membership_script):
@@ -116,6 +114,7 @@ def run_membership_script():
             logger.error(f"{membership_script} had an error")
         # ignore output for now
     return
+
 
 def _user_exists(user):
     """Test if the user `user` exists in the system
@@ -146,14 +145,21 @@ def _add_user(user):
         logger.debug("- user [{}] already exists, skipping".format(user))
         return
 
-
-    cmd = ["useradd", "--create-home", "--system", "--base-dir", USER_HOME_DIR, "--password", user, user]
+    cmd = [
+        "useradd",
+        "--create-home",
+        "--system",
+        "--base-dir",
+        USER_HOME_DIR,
+        "--password",
+        user,
+        user,
+    ]
     result = sp.run(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
 
     if result.returncode == 0:
         logger.debug("- user [{}] add: success".format(user))
         return
-
 
     logger.error("- user [{}] add: fail".format(user))
     # raise exception
@@ -275,21 +281,20 @@ def adduser():
 
     run_membership_script()
 
-
-    #try:
-        # save the user's keys
+    # try:
+    # save the user's keys
     #    priv_key = flask.request.values.get("private_key")
     #    pub_key = flask.request.values.get("public_key")
     #    cert = flask.request.values.get("certificate")
-    #except Exception as e:
+    # except Exception as e:
     #    logger.error(f"could not get data: {str(e)}")
     #    return f"Warning: Unable to save user [{user}] keys -- ({str(e)})", 500
 
-    #try:
+    # try:
 
     #    _save_keys(user, private_key=priv_key, public_key=pub_key, certificate=cert)
-    #except Exception as e:
-        #raise Exception("Could not save keys: "+str(e))
+    # except Exception as e:
+    # raise Exception("Could not save keys: "+str(e))
     #    logger.warning("Warning: Unable to save user [{}] keys".format(user))
     #    logger.error(f"_save_keys returned: {str(e)}")
     #    return f"Warning: Unable to save user [{user}] keys -- ({str(e)})", 500
@@ -297,10 +302,8 @@ def adduser():
     return "User [{}] added".format(user)
 
 
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 
 
-
-
-    #app.run(host="0.0.0.0", port=80)
-    #app.run(host="0.0.0.0")
+# app.run(host="0.0.0.0", port=80)
+# app.run(host="0.0.0.0")

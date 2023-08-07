@@ -22,7 +22,6 @@ def parseTime(timestamp):
 
 
 def get_candidates():
-
     if BEEKEEPER_URL == "":
         logging.error(f"BEEKEEPER_URL not defined")
         sys.exit(1)
@@ -60,7 +59,9 @@ def get_candidates():
             logging.info(f"node {node_id} does not belong to a beehive")
             continue
 
-        if wes_deploy_event in ["", None] or parseTime(registration_event) >= parseTime(wes_deploy_event):
+        if wes_deploy_event in ["", None] or parseTime(registration_event) >= parseTime(
+            wes_deploy_event
+        ):
             logging.info(
                 f"scheduling node {node_id} for wes deployment (reason: no previous deployment or re-registered node)"
             )
@@ -96,13 +97,14 @@ def deploy_wes_to_candidate(candidate):
     resp.raise_for_status()
     result = resp.json()
     if not result.get("success"):
-        raise ValueError(f"Something went wrong: url: {url} status_code: {resp.status_code} body: {resp.text}")
+        raise ValueError(
+            f"Something went wrong: url: {url} status_code: {resp.status_code} body: {resp.text}"
+        )
 
 
 def main():
     logging.info("Starting...")
     while True:
-
         candidates = []
         try:
             candidates = get_candidates()
