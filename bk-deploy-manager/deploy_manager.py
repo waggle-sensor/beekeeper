@@ -133,12 +133,12 @@ def get_candidates() -> list[Candidate]:
     return candidates
 
 
-def try_wes_deployment(candidates: list[Candidate]):
+def try_wes_deployment(candidates: list[Candidate], dry_run: bool):
     success_count = 0
 
     for candidate in candidates:
         try:
-            deploy_wes_to_candidate(candidate)
+            deploy_wes_to_candidate(candidate, dry_run)
             success_count += 1
         except KeyboardInterrupt:
             return
@@ -149,7 +149,7 @@ def try_wes_deployment(candidates: list[Candidate]):
     logging.info("done")
 
 
-def deploy_wes_to_candidate(candidate: Candidate):
+def deploy_wes_to_candidate(candidate: Candidate, dry_run: bool):
     node = candidate.node
 
     if candidate.renew_credentials:
@@ -158,6 +158,9 @@ def deploy_wes_to_candidate(candidate: Candidate):
     else:
         logging.info("deploying to candidate %s", node.id)
         url = f"{BEEKEEPER_URL}/node/{node.id}"
+
+    if dry_run:
+        return
 
     resp = requests.post(url, json={"deploy_wes": True})
     resp.raise_for_status()
@@ -174,6 +177,11 @@ def main():
         "--debug",
         action="store_true",
         help="enable verbose logging",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="get and log candidates but do not deploy wes",
     )
     args = parser.parse_args()
 
@@ -196,7 +204,7 @@ def main():
             logging.info("no candidates for wes deployment found")
         else:
             logging.info("deploying to candidates")
-            try_wes_deployment(candidates)
+            try_wes_deployment(candidates, args.dry_run)
 
         logging.info("waiting 5 minutes...")
         time.sleep(5 * 60)
