@@ -11,6 +11,7 @@ import dateutil.parser
 import requests
 from dataclasses import dataclass
 from typing import Optional
+from pathlib import Path
 
 
 @dataclass
@@ -81,12 +82,16 @@ def get_nodes() -> list[Node]:
     return nodes
 
 
-def get_candidates() -> list[Candidate]:
+def get_candidates(ignorelist: list[str]) -> list[Candidate]:
     nodes = get_nodes()
 
     candidates = []
 
     for node in nodes:
+        if node.id in ignorelist:
+            logging.info("node %s in ignorelist - skipping", node.id)
+            continue
+
         if node.registered_at is None:
             logging.info("node %s is not registered", node.id)
             continue
@@ -179,6 +184,10 @@ def main():
         help="enable verbose logging",
     )
     parser.add_argument(
+        "--ignorefile",
+        help="path of ignorefile",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="get and log candidates but do not deploy wes",
@@ -191,12 +200,20 @@ def main():
         datefmt="%Y/%m/%d %H:%M:%S",
     )
 
+    if args.ignorefile:
+        logging.info("loading ignorefile %s", args.ignorefile)
+        ignorefile = Path(args.ignorefile)
+        ignorelist = [s.upper().rjust(16, "0") for s in ignorefile.read_text().split()]
+    else:
+        logging.info("no ignorefile provided")
+        ignorelist = []
+
     while True:
         candidates = []
 
         try:
             logging.info("getting candidates")
-            candidates = get_candidates()
+            candidates = get_candidates(ignorelist)
         except Exception as e:
             logging.error(f"error: get_candidates returned: {str(e)}")
 
